@@ -1,0 +1,10 @@
+.env
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+memory/*.db
+memory/chroma_db/
+tests/
+.pytest_cache/

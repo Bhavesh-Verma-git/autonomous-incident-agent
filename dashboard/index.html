@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aegis — Autonomous Incident Response</title>
+  <meta name="description" content="Aegis is an AI-powered incident response platform for real-time detection, triage, and resolution." />
+  <meta name="theme-color" content="#8b5cf6" />
+  <link rel="icon" type="image/png" href="./favicon.png" />
+  <link rel="apple-touch-icon" href="./favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* ── Design tokens (Resqit-inspired premium dark + violet) ───────────── */
+    :root {
+      /* Surfaces */
+      --background: #0a0813;
+      --surface-1: #110e1d;     /* base card */
+      --surface-2: #16121f;     /* raised card */
+      --surface-3: #1d1830;     /* inset / hover */
+      --foreground: #f5f3ff;
+      --card: #110e1d;
+
+      /* Brand + accents */
+      --primary: #8b5cf6;        /* violet */
+      --primary-bright: #a78bfa;
+      --primary-foreground: #ffffff;
+      --accent-orange: #fb7a3c;
+      --accent-cyan: #38bdf8;
+
+      /* Text */
+      --muted-foreground: #9d97b5;
+      --subtle-foreground: #c9c4dd;
+
+      /* Borders */
+      --border: rgba(255, 255, 255, 0.06);
+      --border-strong: rgba(255, 255, 255, 0.10);
+      --ring: rgba(139, 92, 246, 0.55);
+
+      /* Status Colors */
+      --status-success: #34d399;
+      --status-success-bg: rgba(52, 211, 153, 0.12);
+      --status-warning: #fbbf24;
+      --status-warning-bg: rgba(251, 191, 36, 0.12);
+      --status-danger: #fb7185;
+      --status-danger-bg: rgba(251, 113, 133, 0.12);
+      --status-info: #38bdf8;
+      --status-info-bg: rgba(56, 189, 248, 0.12);
+      --status-muted: #8b87a3;
+      --status-muted-bg: rgba(139, 135, 163, 0.12);
+
+      --radius: 16px;
+      --radius-sm: 12px;
+      --radius-xs: 10px;
+      --shadow-card: 0 1px 0 0 rgba(255,255,255,0.04) inset, 0 18px 40px -24px rgba(0,0,0,0.9);
+      --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--foreground);
+      -webkit-font-smoothing: antialiased;
+      font-size: 14px;
+      line-height: 1.55;
+      background-color: var(--background);
+      /* layered radial glows like the inspiration */
+      background-image:
+        radial-gradient(900px 600px at 12% -8%, rgba(139, 92, 246, 0.18), transparent 60%),
+        radial-gradient(720px 520px at 96% 4%, rgba(56, 189, 248, 0.10), transparent 55%),
+        radial-gradient(900px 700px at 88% 110%, rgba(251, 122, 60, 0.08), transparent 55%);
+      background-attachment: fixed;
+    }
+
+    /* ── Scrollbars ──────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.22); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.4); background-clip: padding-box; }
+
+    /* ── Typography ──────────────────────────────────────────────────────── */
+    h1, h2, h3, h4, h5, h6 { font-weight: 700; letter-spacing: -0.02em; }
+    .text-muted { color: var(--muted-foreground); }
+    .text-sm { font-size: 13px; }
+    .text-xs { font-size: 12px; }
+    .font-mono { font-family: var(--font-mono); }
+    .font-medium { font-weight: 500; }
+    .font-semibold { font-weight: 600; }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    .app-layout {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      padding: 16px;
+      gap: 16px;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 268px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      background:
+        linear-gradient(180deg, rgba(139,92,246,0.08), rgba(255,255,255,0) 220px),
+        var(--surface-1);
+      flex-shrink: 0;
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+    .sidebar-header {
+      height: 72px;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      background: linear-gradient(140deg, var(--primary-bright), var(--primary) 55%, #6d28d9);
+      box-shadow: 0 8px 20px -6px rgba(139,92,246,0.7);
+      flex-shrink: 0;
+    }
+    .brand-icon { color: #fff; }
+    .brand-text {
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .sidebar-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      padding: 0 8px;
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      height: 42px;
+      padding: 0 18px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.15s, opacity 0.15s;
+      border: 1px solid transparent;
+      outline: none;
+      font-family: var(--font-sans);
+      white-space: nowrap;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-bright), var(--primary) 60%, #7c3aed);
+      color: var(--primary-foreground);
+      box-shadow: 0 10px 24px -10px rgba(139,92,246,0.85);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 14px 30px -10px rgba(139,92,246,1);
+      filter: brightness(1.05);
+    }
+    .btn-secondary {
+      background-color: var(--surface-3);
+      color: var(--subtle-foreground);
+      border-color: var(--border-strong);
+    }
+    .btn-secondary:hover {
+      background-color: #261f3d;
+      color: var(--foreground);
+    }
+    .btn-success {
+      background: linear-gradient(135deg, #4ade80, var(--status-success) 70%);
+      color: #04140d;
+    }
+    .btn-success:hover { filter: brightness(1.06); }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .btn-full { width: 100%; }
+
+    /* ── Incident List ───────────────────────────────────────────────────── */
+    .incident-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .incident-item {
+      padding: 13px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background-color: rgba(255,255,255,0.015);
+      transition: background-color 0.18s, border-color 0.18s, transform 0.15s;
+    }
+    .incident-item:hover {
+      background-color: var(--surface-3);
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+    }
+    .incident-item.active {
+      background: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(139,92,246,0.06));
+      border-color: rgba(139,92,246,0.45);
+      box-shadow: 0 0 0 1px rgba(139,92,246,0.15), 0 10px 24px -16px rgba(139,92,246,0.9);
+    }
+    .inc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .inc-id {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--foreground);
+    }
+    .inc-service {
+      font-size: 13px;
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Drawer UX */
+    .incident-drawer {
+      position: fixed;
+      top: 16px;
+      right: 0;
+      bottom: 16px;
+      width: 480px;
+      background: rgba(10, 5, 20, 0.1);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border: 1px solid rgba(167, 139, 250, 0.8);
+      border-right: none;
+      border-radius: 24px 0 0 24px;
+      z-index: 1000;
+      transform: translateX(120%);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -10px 0 40px rgba(0, 0, 0, 0.4), inset 0 0 80px rgba(167, 139, 250, 0.25);
+    }
+    .incident-drawer.open {
+      transform: translateX(0);
+    }
+    .drawer-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .drawer-title {
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      color: var(--text-primary);
+      text-transform: uppercase;
+    }
+    .drawer-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .drawer-close:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.1);
+    }
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .drawer-body .card {
+      background: rgba(30, 30, 42, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* ── Utilities ───────────────────────────────────────────────────────── */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0) 160px),
+        var(--surface-1);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+    .topbar {
+      height: 72px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      flex-shrink: 0;
+    }
+    .page-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .api-status {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+      background-color: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 500;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--status-muted);
+    }
+    .status-dot.online { background-color: var(--status-success); box-shadow: 0 0 0 4px rgba(52,211,153,0.18), 0 0 10px var(--status-success); }
+    .status-dot.offline { background-color: var(--status-danger); box-shadow: 0 0 0 4px rgba(251,113,133,0.18); }
+
+    .content-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px;
+    }
+    .content-container {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Stats ───────────────────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .stat-card {
+      position: relative;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      --accent: var(--primary-bright);
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .stat-card:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-2px);
+      box-shadow: 0 18px 36px -22px rgba(0,0,0,0.9);
+    }
+    .stat-card[data-accent="success"] { --accent: var(--status-success); }
+    .stat-card[data-accent="warning"] { --accent: var(--status-warning); }
+    .stat-card[data-accent="danger"]  { --accent: var(--status-danger); }
+
+    .stat-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .stat-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+    }
+    .stat-icon i { width: 17px; height: 17px; }
+    .stat-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted-foreground);
+      letter-spacing: 0.01em;
+    }
+    .stat-delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .stat-bottom {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .stat-value {
+      font-family: var(--font-sans);
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .stat-spark { flex-shrink: 0; opacity: 0.9; }
+    .stat-spark path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .stat-spark .spark-area { fill: color-mix(in srgb, var(--accent) 16%, transparent); stroke: none; }
+
+    /* ── Analytics Row ───────────────────────────────────────────────────── */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+      gap: 20px;
+      align-items: stretch;
+    }
+    .chart-toolbar {
+      display: inline-flex;
+      padding: 3px;
+      gap: 2px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+    }
+    .chart-seg {
+      border: none;
+      background: transparent;
+      color: var(--muted-foreground);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+    .chart-seg:hover { color: var(--subtle-foreground); }
+    .chart-seg.active {
+      color: var(--foreground);
+      background: linear-gradient(135deg, var(--primary-bright), var(--primary));
+      box-shadow: 0 6px 16px -8px rgba(139,92,246,0.9);
+    }
+    .line-chart { width: 100%; height: 200px; display: block; overflow: visible; }
+    .line-chart .grid-line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 5; }
+    .line-chart .axis-label { fill: var(--muted-foreground); font-size: 11px; font-family: var(--font-mono); }
+    .line-chart .series-area { stroke: none; }
+    .line-chart .series-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+    .donut { flex-shrink: 0; transform: rotate(-90deg); }
+    .donut-track { fill: none; stroke: rgba(255,255,255,0.05); }
+    .donut-seg { fill: none; stroke-linecap: round; transition: stroke-dashoffset 0.8s cubic-bezier(0.16,1,0.3,1); }
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .legend-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+    .legend-label { color: var(--subtle-foreground); flex: 1; }
+    .legend-value { font-family: var(--font-mono); font-weight: 600; color: var(--foreground); }
+
+    /* ── Workspace Grid ──────────────────────────────────────────────────── */
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────────────── */
+    .card {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0) 120px),
+        var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title i { color: var(--primary-bright); }
+    .card-body {
+      padding: 22px;
+    }
+
+    /* ── Status Badges ───────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: capitalize;
+      letter-spacing: 0.01em;
+    }
+    .badge-running { background-color: var(--status-info-bg); color: var(--status-info); border: 1px solid rgba(56, 189, 248, 0.25); }
+    .badge-pending { background-color: var(--status-muted-bg); color: var(--status-muted); border: 1px solid rgba(139, 135, 163, 0.25); }
+    .badge-waiting { background-color: var(--status-warning-bg); color: var(--status-warning); border: 1px solid rgba(251, 191, 36, 0.25); }
+    .badge-completed { background-color: var(--status-success-bg); color: var(--status-success); border: 1px solid rgba(52, 211, 153, 0.25); }
+    .badge-failed { background-color: var(--status-danger-bg); color: var(--status-danger); border: 1px solid rgba(251, 113, 133, 0.25); }
+
+    /* ── Timeline ────────────────────────────────────────────────────────── */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+    }
+    .timeline-item {
+      display: flex;
+      gap: 16px;
+      padding-bottom: 24px;
+      position: relative;
+    }
+    .timeline-item:last-child {
+      padding-bottom: 0;
+    }
+    .timeline-item:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 13px;
+      top: 28px;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(180deg, rgba(139,92,246,0.4), var(--border));
+      border-radius: 2px;
+    }
+    .timeline-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--surface-3);
+      color: var(--muted-foreground);
+      z-index: 1;
+      flex-shrink: 0;
+      border: 1px solid var(--border-strong);
+    }
+    .timeline-icon.done {
+      color: var(--status-success);
+      background-color: var(--status-success-bg);
+      border-color: rgba(52,211,153,0.3);
+    }
+    .timeline-content {
+      flex: 1;
+      padding-top: 3px;
+    }
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .timeline-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .timeline-time {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .timeline-desc {
+      font-size: 13px;
+      color: var(--muted-foreground);
+      line-height: 1.6;
+    }
+
+    /* ── Report Card ─────────────────────────────────────────────────────── */
+    .report-section {
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+    .report-field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .field-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+    .field-value {
+      font-size: 14px;
+      color: var(--subtle-foreground);
+      line-height: 1.6;
+    }
+    .confidence-meter {
+      height: 10px;
+      background-color: var(--surface-3);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 6px;
+      border: 1px solid var(--border);
+    }
+    .confidence-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 0 12px currentColor;
+    }
+    .evidence-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .evidence-item {
+      font-size: 13px;
+      color: var(--subtle-foreground);
+      padding: 12px 16px;
+      background-color: rgba(255,255,255,0.02);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      line-height: 1.55;
+    }
+
+    .summaries-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 22px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+    }
+    .summary-item {
+      background-color: rgba(255,255,255,0.02);
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .summary-label {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--foreground);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .summary-label i { color: var(--primary-bright); }
+
+    /* ── HITL Panel ──────────────────────────────────────────────────────── */
+    .hitl-panel {
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      background:
+        linear-gradient(180deg, rgba(251,191,36,0.07), rgba(255,255,255,0) 140px),
+        var(--surface-2);
+    }
+    .hitl-panel .card-header {
+      border-bottom-color: rgba(251, 191, 36, 0.18);
+    }
+    .hitl-panel .card-title i { color: var(--status-warning); }
+    .hitl-hypothesis {
+      background-color: rgba(0,0,0,0.25);
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--status-warning);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 22px;
+    }
+
+    /* ── Forms ───────────────────────────────────────────────────────────── */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .form-control {
+      background-color: rgba(0,0,0,0.25);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      color: var(--foreground);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      padding: 12px 14px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .form-control::placeholder { color: var(--muted-foreground); }
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--ring);
+    }
+    select.form-control { cursor: pointer; }
+    textarea.form-control {
+      resize: vertical;
+      min-height: 104px;
+      line-height: 1.6;
+    }
+
+    /* ── Modal ───────────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(6, 4, 14, 0.72);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-content {
+      background:
+        linear-gradient(180deg, rgba(139,92,246,0.10), rgba(255,255,255,0) 180px),
+        var(--surface-2);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.85);
+      transform: scale(0.96) translateY(8px);
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .modal-overlay.open .modal-content {
+      transform: scale(1) translateY(0);
+    }
+    .modal-header {
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .btn-close {
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 34px;
+      height: 34px;
+      color: var(--muted-foreground);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+    .btn-close:hover { color: var(--foreground); background: #2a2240; }
+    .modal-body { padding: 24px; }
+    .modal-footer {
+      padding: 18px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    /* ── Toasts ──────────────────────────────────────────────────────────── */
+    .toaster {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
+        var(--surface-2);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 13px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8);
+      font-size: 13px;
+      font-weight: 500;
+      animation: slideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .toast-icon { display: flex; align-items: center; }
+    .toast-success .toast-icon { color: var(--status-success); }
+    .toast-error .toast-icon { color: var(--status-danger); }
+    .toast-info .toast-icon { color: var(--status-info); }
+
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Empty States ────────────────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 56px 24px;
+      text-align: center;
+      color: var(--muted-foreground);
+    }
+    .empty-icon {
+      margin-bottom: 16px;
+      opacity: 0.6;
+      color: var(--primary-bright);
+    }
+    .empty-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--foreground);
+      margin-bottom: 8px;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .workspace-grid { grid-template-columns: 1fr; }
+      .analytics-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .app-layout { flex-direction: column; height: auto; min-height: 100vh; }
+      .sidebar { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="brand-mark">
+        <i data-lucide="shield-alert" class="brand-icon"></i>
+      </div>
+      <div>
+        <div class="brand-text">Aegis</div>
+        <div class="brand-sub">Incident Response</div>
+      </div>
+    </div>
+
+    <div class="sidebar-content">
+      <div>
+        <button class="btn btn-primary btn-full" onclick="openModal()">
+          <i data-lucide="plus" size="16"></i>
+          Trigger Incident
+        </button>
+      </div>
+
+      <div>
+        <div class="sidebar-section-title">Active Incidents</div>
+        <div class="incident-list" id="incidentList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Area ──────────────────────────────────────────────────────── -->
+  <div class="main-area">
+    <div class="topbar">
+      <div class="page-title">Incident Dashboard</div>
+      <div class="api-status">
+        <div class="status-dot" id="apiDot"></div>
+        <span id="apiStatusText">Connecting...</span>
+      </div>
+    </div>
+
+    <div class="content-scroll">
+      <div class="content-container">
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card" data-accent="primary">
+            <div class="stat-top">
+              <div class="stat-icon"><i data-lucide="layers"></i></div>
+            </div>
+            <div class="stat-bottom">
+              <div>
+                <div class="stat-value" id="statTotal">0</div>
+                <div class="stat-title">Total Incidents</div>
+              </div>
+              <svg class="stat-spark" width="68" height="34" viewBox="0 0 68 34" aria-hidden="true">
+                <path class="spark-area" d="M0,24 L11,18 L23,22 L34,12 L45,16 L57,7 L68,11 L68,34 L0,34 Z"/>
+                <path d="M0,24 L11,18 L23,22 L34,12 L45,16 L57,7 L68,11"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-card" data-accent="success">
+            <div class="stat-top">
+              <div class="stat-icon"><i data-lucide="check-circle-2"></i></div>
+            </div>
+            <div class="stat-bottom">
+              <div>
+                <div class="stat-value" id="statCompleted">0</div>
+                <div class="stat-title">Completed</div>
+              </div>
+              <svg class="stat-spark" width="68" height="34" viewBox="0 0 68 34" aria-hidden="true">
+                <path class="spark-area" d="M0,26 L11,22 L23,24 L34,15 L45,17 L57,9 L68,6 L68,34 L0,34 Z"/>
+                <path d="M0,26 L11,22 L23,24 L34,15 L45,17 L57,9 L68,6"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-card" data-accent="warning">
+            <div class="stat-top">
+              <div class="stat-icon"><i data-lucide="user-check"></i></div>
+            </div>
+            <div class="stat-bottom">
+              <div>
+                <div class="stat-value" id="statWaiting">0</div>
+                <div class="stat-title">Needs Review</div>
+              </div>
+              <svg class="stat-spark" width="68" height="34" viewBox="0 0 68 34" aria-hidden="true">
+                <path class="spark-area" d="M0,12 L11,16 L23,10 L34,18 L45,15 L57,22 L68,19 L68,34 L0,34 Z"/>
+                <path d="M0,12 L11,16 L23,10 L34,18 L45,15 L57,22 L68,19"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-card" data-accent="danger">
+            <div class="stat-top">
+              <div class="stat-icon"><i data-lucide="alert-octagon"></i></div>
+            </div>
+            <div class="stat-bottom">
+              <div>
+                <div class="stat-value" id="statFailed">0</div>
+                <div class="stat-title">Failed</div>
+              </div>
+              <svg class="stat-spark" width="68" height="34" viewBox="0 0 68 34" aria-hidden="true">
+                <path class="spark-area" d="M0,10 L11,14 L23,11 L34,17 L45,14 L57,20 L68,24 L68,34 L0,34 Z"/>
+                <path d="M0,10 L11,14 L23,11 L34,17 L45,14 L57,20 L68,24"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics -->
+        <div class="analytics-grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i data-lucide="trending-up" size="18"></i>
+                Incident Volume Trends
+              </div>
+              <div class="chart-toolbar" id="volumeToolbar">
+                <button class="chart-seg active" data-range="week">Week</button>
+                <button class="chart-seg" data-range="month">Month</button>
+                <button class="chart-seg" data-range="year">Year</button>
+              </div>
+            </div>
+            <div class="card-body" id="volumeChartBody"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i data-lucide="pie-chart" size="18"></i>
+                Status Breakdown
+              </div>
+            </div>
+            <div class="card-body" id="donutBody"></div>
+          </div>
+        </div>
+
+
+
+        <!-- Incident Drawer -->
+        <div id="incidentDrawer" class="incident-drawer">
+          <div class="drawer-header">
+            <div class="drawer-title" id="drawerTitle">INCIDENT TIMELINE</div>
+            <button class="drawer-close" onclick="closeDrawer()">
+              <i data-lucide="x" size="20"></i>
+            </button>
+          </div>
+          <div class="drawer-body">
+            <div id="detailGrid" style="display: flex; flex-direction: column; gap: 20px;">
+            
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i data-lucide="activity" size="18"></i>
+                  Execution Trace
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span id="selectedIncId" class="font-mono text-xs text-muted"></span>
+                  <span id="graphStatusBadge" class="badge badge-pending">Pending</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="timeline" id="timeline">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="reportCard" style="display: none;">
+              <div class="card-header">
+                <div class="card-title">
+                  <i data-lucide="file-text" size="18"></i>
+                  Incident Report
+                </div>
+                <span id="reportId" class="font-mono text-xs text-muted"></span>
+              </div>
+              <div class="card-body">
+                <div class="report-section">
+                  <div class="report-field">
+                    <div class="field-label">Root Cause Hypothesis</div>
+                    <div class="field-value" id="rcHypothesis"></div>
+                  </div>
+                  
+                  <div class="report-field">
+                    <div class="field-label">Confidence Score</div>
+                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                      <span id="rcConfidence" class="font-mono font-medium" style="font-size: 22px; font-weight: 700;"></span>
+                    </div>
+                    <div class="confidence-meter">
+                      <div class="confidence-fill" id="confidenceFill"></div>
+                    </div>
+                  </div>
+
+                  <div class="report-field">
+                    <div class="field-label">Recommended Action</div>
+                    <div class="field-value" id="rcAction"></div>
+                  </div>
+
+                  <div class="report-field">
+                    <div class="field-label">Supporting Evidence</div>
+                    <ul class="evidence-list" id="rcEvidence"></ul>
+                  </div>
+                </div>
+
+                <div class="summaries-grid" id="summariesGrid">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+            </div>
+
+          <!-- Right Column Integrated -->
+            
+            <div class="card" id="engineerIdle">
+              <div class="card-header">
+                <div class="card-title">
+                  <i data-lucide="user" size="18"></i>
+                  Analyst Review
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="empty-state" style="padding: 24px 0;">
+                  <i data-lucide="check-circle-2" size="24" class="empty-icon" style="color: var(--status-success); opacity: 1;"></i>
+                  <div class="empty-title">Agent Running Autonomously</div>
+                  <div class="text-sm">You will be requested for input if confidence drops below threshold.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card hitl-panel" id="hitlPanel" style="display: none;">
+              <div class="card-header">
+                <div class="card-title" style="color: var(--status-warning);">
+                  <i data-lucide="alert-triangle" size="18"></i>
+                  Human Input Required
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="text-sm text-muted" style="margin-bottom: 16px;">
+                  The agent's confidence is below threshold. Please review the current hypothesis and provide additional context.
+                </div>
+                
+                <div class="hitl-hypothesis">
+                  <div class="text-xs font-medium text-muted" style="margin-bottom: 8px; text-transform: uppercase;">Current Hypothesis</div>
+                  <div id="hitlHypothesis" style="color: var(--foreground);"></div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="hitlInput">Analyst Context / Override</label>
+                  <textarea class="form-control" id="hitlInput" placeholder="Enter findings to guide the agent..."></textarea>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                  <button class="btn btn-success" style="flex: 1;" id="hitlSubmitBtn" onclick="submitHITL()">
+                    <i data-lucide="play" size="16"></i> Resume
+                  </button>
+                  <button class="btn btn-secondary" onclick="skipHITL()">
+                    Skip
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Trigger Modal ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="triggerModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">Trigger Incident</div>
+      <button class="btn-close" onclick="closeModal()">
+        <i data-lucide="x" size="20"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="form-group">
+          <label class="form-label" for="fAlertId">Alert ID</label>
+          <input class="form-control" id="fAlertId" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fService">Service</label>
+          <input class="form-control" id="fService" placeholder="e.g. payments-api" />
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="form-group">
+          <label class="form-label" for="fSeverity">Severity</label>
+          <select class="form-control" id="fSeverity">
+            <option value="critical">Critical</option>
+            <option value="high" selected>High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fEnvironment">Environment</label>
+          <input class="form-control" id="fEnvironment" value="production" />
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label" for="fDescription">Alert Description</label>
+        <textarea class="form-control" id="fDescription" placeholder="Raw alert payload or description..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="triggerSubmitBtn" onclick="triggerIncident()">
+        <i data-lucide="zap" size="16"></i> Start Investigation
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toaster" id="toastContainer"></div>
+
+<script>
+  // Initialize Lucide icons
+  lucide.createIcons();
+
+  const API = 'http://localhost:8000';
+  const API_KEY = 'airp-dev-secret-change-me-before-deploy';
+  const apiHeaders = { 'X-Api-Key': API_KEY };
+  let selectedId = null;
+  let eventSource = null;
+  let refreshInterval = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    checkHealth();
+    loadIncidents();
+    initVolumeChart();
+    renderDonut();
+  });
+
+  /* ── Charts (presentation only; sample data) ──────────────────────────── */
+  const VOLUME_DATA = {
+    week:  { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], series: [12,19,9,22,17,7,14] },
+    month: { labels: ['W1','W2','W3','W4'], series: [62,78,54,83] },
+    year:  { labels: ['Jan','Mar','May','Jul','Sep','Nov'], series: [210,180,260,230,300,275] },
+  };
+
+  function initVolumeChart() {
+    const toolbar = document.getElementById('volumeToolbar');
+    if (!toolbar) return;
+    toolbar.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chart-seg');
+      if (!btn) return;
+      toolbar.querySelectorAll('.chart-seg').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderVolumeChart(btn.dataset.range);
+    });
+    renderVolumeChart('week');
+  }
+
+  function renderVolumeChart(range) {
+    const body = document.getElementById('volumeChartBody');
+    if (!body) return;
+    const { labels, series } = VOLUME_DATA[range] || VOLUME_DATA.week;
+    const W = 640, H = 200, padX = 8, padTop = 16, padBottom = 28;
+    const max = Math.max(...series) * 1.15;
+    const stepX = (W - padX * 2) / (series.length - 1);
+    const y = v => padTop + (1 - v / max) * (H - padTop - padBottom);
+    const pts = series.map((v, i) => [padX + i * stepX, y(v)]);
+
+    // smooth-ish path using line segments
+    const linePath = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const areaPath = `${linePath} L${pts[pts.length-1][0].toFixed(1)},${H - padBottom} L${pts[0][0].toFixed(1)},${H - padBottom} Z`;
+
+    const gridLines = [0.25, 0.5, 0.75, 1].map(f => {
+      const gy = padTop + f * (H - padTop - padBottom);
+      return `<line class="grid-line" x1="${padX}" y1="${gy}" x2="${W - padX}" y2="${gy}" />`;
+    }).join('');
+
+    const xLabels = labels.map((l, i) =>
+      `<text class="axis-label" x="${padX + i * stepX}" y="${H - 6}" text-anchor="middle">${l}</text>`
+    ).join('');
+
+    const dots = pts.map(p =>
+      `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="#a78bfa" />`
+    ).join('');
+
+    body.innerHTML = `
+      <svg class="line-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Incident volume trend">
+        <defs>
+          <linearGradient id="volArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(139,92,246,0.35)" />
+            <stop offset="100%" stop-color="rgba(139,92,246,0)" />
+          </linearGradient>
+          <linearGradient id="volLine" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#38bdf8" />
+            <stop offset="100%" stop-color="#a78bfa" />
+          </linearGradient>
+        </defs>
+        ${gridLines}
+        <path class="series-area" d="${areaPath}" fill="url(#volArea)" />
+        <path class="series-line" d="${linePath}" stroke="url(#volLine)" />
+        ${dots}
+        ${xLabels}
+      </svg>
+    `;
+  }
+
+  function renderDonut() {
+    const body = document.getElementById('donutBody');
+    if (!body) return;
+    const completed = parseInt(document.getElementById('statCompleted')?.textContent || '0', 10);
+    const waiting   = parseInt(document.getElementById('statWaiting')?.textContent || '0', 10);
+    const failed    = parseInt(document.getElementById('statFailed')?.textContent || '0', 10);
+    const total     = parseInt(document.getElementById('statTotal')?.textContent || '0', 10);
+    const running   = Math.max(total - completed - waiting - failed, 0);
+
+    let segs = [
+      { label: 'Running',   value: running,   color: '#38bdf8' },
+      { label: 'Completed', value: completed, color: '#34d399' },
+      { label: 'Needs Review', value: waiting, color: '#fbbf24' },
+      { label: 'Failed',    value: failed,    color: '#fb7185' },
+    ];
+    const sum = segs.reduce((a, s) => a + s.value, 0);
+    const realSum = sum > 0 ? sum : 1;
+
+    const R = 52, C = 2 * Math.PI * R, gap = 4;
+    let offset = 0;
+    const arcs = segs.filter(s => s.value > 0).map(s => {
+      const frac = s.value / realSum;
+      const len = Math.max(frac * C - gap, 0);
+      const dash = `${len} ${C - len}`;
+      const arc = `<circle class="donut-seg" cx="70" cy="70" r="${R}" stroke="${s.color}" stroke-width="14"
+        stroke-dasharray="${dash}" stroke-dashoffset="${-offset}" />`;
+      offset += frac * C;
+      return arc;
+    }).join('');
+
+    const legend = segs.map(s => `
+      <div class="legend-row">
+        <span class="legend-dot" style="background:${s.color}"></span>
+        <span class="legend-label">${s.label}</span>
+        <span class="legend-value">${sum === 0 ? 0 : Math.round((s.value / realSum) * 100)}%</span>
+      </div>
+    `).join('');
+
+    body.innerHTML = `
+      <div class="donut-wrap">
+        <svg class="donut" width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="Incident status breakdown">
+          <circle class="donut-track" cx="70" cy="70" r="${R}" stroke-width="14" />
+          ${arcs}
+        </svg>
+        <div class="donut-legend">${legend}</div>
+      </div>
+    `;
+  }
+
+  async function checkHealth() {
+    const dot = document.getElementById('apiDot');
+    const text = document.getElementById('apiStatusText');
+    try {
+      const r = await fetch(`${API}/health`);
+      const data = await r.json();
+      dot.className = 'status-dot online';
+      text.textContent = `Connected · ${Math.round(data.uptime_s)}s`;
+    } catch {
+      dot.className = 'status-dot offline';
+      text.textContent = 'Disconnected';
+    }
+  }
+
+  async function loadIncidents() {
+    try {
+      const r = await fetch(`${API}/incidents`, { headers: apiHeaders });
+      const list = await r.json();
+
+      document.getElementById('statTotal').textContent = list.length;
+      document.getElementById('statCompleted').textContent = list.filter(i => i.status === 'completed').length;
+      document.getElementById('statWaiting').textContent = list.filter(i => i.status === 'waiting').length;
+      document.getElementById('statFailed').textContent = list.filter(i => i.status === 'failed').length;
+      renderDonut();
+
+      const el = document.getElementById('incidentList');
+      if (list.length === 0) {
+        el.innerHTML = '<div class="text-sm text-muted" style="text-align: center; padding: 16px;">No incidents</div>';
+        return;
+      }
+
+      el.innerHTML = list.map(inc => {
+        let statusColor = 'var(--status-muted)';
+        if (inc.status === 'completed') statusColor = 'var(--status-success)';
+        if (inc.status === 'waiting') statusColor = 'var(--status-warning)';
+        if (inc.status === 'running') statusColor = 'var(--status-info)';
+        if (inc.status === 'failed') statusColor = 'var(--status-danger)';
+
+        return `
+          <div class="incident-item ${inc.incident_id === selectedId ? 'active' : ''}" onclick="selectIncident('${inc.incident_id}')">
+            <div class="inc-header">
+              <span class="inc-id">${inc.incident_id}</span>
+              <div style="width: 8px; height: 8px; border-radius: 50%; background-color: ${statusColor};"></div>
+            </div>
+            <div class="inc-service">
+              <i data-lucide="box" style="width: 14px; height: 14px;"></i>
+              ${inc.service}
+            </div>
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
+
+      if (selectedId) {
+        const current = list.find(i => i.incident_id === selectedId);
+        if (current) renderStatusBadge(current.status);
+        if (current?.status === 'waiting' && document.getElementById('hitlPanel').style.display === 'none') {
+          showHITLPanel();
+        }
+        if (current?.status === 'completed' && document.getElementById('reportCard').style.display === 'none') {
+          loadReport(selectedId);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load incidents', e);
+    }
+  }
+
+  function closeDrawer() {
+    document.getElementById('incidentDrawer').classList.remove('open');
+    selectedId = null;
+    // Remove active class from incident list
+    document.querySelectorAll('.incident-item').forEach(el => el.classList.remove('active'));
+  }
+
+  // Click outside to close drawer
+  document.addEventListener('click', (e) => {
+    const drawer = document.getElementById('incidentDrawer');
+    if (drawer && drawer.classList.contains('open')) {
+      if (!e.target.closest('#incidentDrawer') && !e.target.closest('.incident-item')) {
+        closeDrawer();
+      }
+    }
+  });
+
+  async function selectIncident(id) {
+    selectedId = id;
+    const detailGrid = document.getElementById('detailGrid');
+    detailGrid.style.display = 'flex';
+    document.getElementById('incidentDrawer').classList.add('open');
+    document.getElementById('drawerTitle').textContent = `INCIDENT TIMELINE - #${id}`;
+
+    document.getElementById('selectedIncId').textContent = id;
+    
+    document.getElementById('timeline').innerHTML = `
+      <div class="empty-state" style="padding: 24px 0;">
+        <i data-lucide="loader-2" class="empty-icon" style="animation: spin 1s linear infinite;"></i>
+        <div class="text-sm text-muted">Connecting stream...</div>
+      </div>
+    `;
+    lucide.createIcons();
+
+    document.getElementById('reportCard').style.display = 'none';
+    document.getElementById('hitlPanel').style.display = 'none';
+    document.getElementById('engineerIdle').style.display = 'block';
+
+    await loadIncidents();
+    connectStream(id);
+
+    const r = await fetch(`${API}/incidents/${id}`, { headers: apiHeaders });
+    const inc = await r.json();
+    renderStatusBadge(inc.status);
+    if (inc.status === 'completed') loadReport(id);
+    if (inc.status === 'waiting') showHITLPanel();
+  }
+
+  function connectStream(id) {
+    if (eventSource) { eventSource.close(); }
+    document.getElementById('timeline').innerHTML = '';
+    eventSource = new EventSource(`${API}/incidents/${id}/stream`);
+
+    eventSource.onmessage = (e) => {
+      const event = JSON.parse(e.data);
+      if (event.event === 'node_complete') {
+        addTimelineItem(event);
+      } else if (event.event === 'status') {
+        renderStatusBadge(event.data);
+        loadIncidents(); // Reactively update list and counts instead of polling
+        if (event.data === 'completed') {
+          setTimeout(() => loadReport(selectedId), 500);
+          eventSource.close();
+        }
+        if (event.data === 'waiting') {
+          setTimeout(() => showHITLPanel(), 300);
+          eventSource.close();
+        }
+        if (event.data === 'failed') {
+          eventSource.close();
+        }
+      } else if (event.event === 'done') {
+        eventSource.close();
+      }
+    };
+  }
+
+  function addTimelineItem(event) {
+    const tl = document.getElementById('timeline');
+    const empty = tl.querySelector('.empty-state');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = 'timeline-item';
+    const time = new Date(event.timestamp).toLocaleTimeString();
+    
+    item.innerHTML = `
+      <div class="timeline-icon done">
+        <i data-lucide="check-circle-2" size="18"></i>
+      </div>
+      <div class="timeline-content">
+        <div class="timeline-header">
+          <div class="timeline-title">${event.label.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')}</div>
+          <div class="timeline-time">${time}</div>
+        </div>
+        <div class="timeline-desc">${event.summary}</div>
+      </div>
+    `;
+    tl.appendChild(item);
+    lucide.createIcons({ root: item });
+  }
+
+  function renderStatusBadge(status) {
+    const el = document.getElementById('graphStatusBadge');
+    el.className = `badge badge-${status}`;
+    el.textContent = status;
+  }
+
+  async function loadReport(id) {
+    try {
+      const r = await fetch(`${API}/incidents/${id}/report`, { headers: apiHeaders });
+      if (!r.ok) return;
+      const report = await r.json();
+
+      document.getElementById('reportCard').style.display = 'flex';
+      document.getElementById('reportId').textContent = report.report_id;
+
+      const rc = report.root_cause;
+      if (rc) {
+        document.getElementById('rcHypothesis').textContent = rc.hypothesis || '—';
+        const pct = Math.round((rc.confidence_score || 0) * 100);
+        
+        const confEl = document.getElementById('rcConfidence');
+        confEl.textContent = `${pct}%`;
+        
+        let color = 'var(--status-danger)';
+        if (pct >= 80) color = 'var(--status-success)';
+        else if (pct >= 50) color = 'var(--status-warning)';
+        
+        confEl.style.color = color;
+        
+        const fill = document.getElementById('confidenceFill');
+        fill.style.width = `${pct}%`;
+        fill.style.backgroundColor = color;
+        
+        document.getElementById('rcAction').textContent = rc.recommended_action || '—';
+
+        const evList = document.getElementById('rcEvidence');
+        evList.innerHTML = (rc.supporting_evidence || []).map(e => 
+          `<li class="evidence-item">${e}</li>`
+        ).join('');
+      }
+
+      const grid = document.getElementById('summariesGrid');
+      const items = [
+        { label: 'Log Analysis', icon: 'file-text', text: report.log_summary },
+        { label: 'Metric Analysis', icon: 'activity', text: report.metric_summary },
+        { label: 'Deployment Analysis', icon: 'rocket', text: report.deployment_summary },
+      ].filter(s => s.text);
+      
+      grid.innerHTML = items.map(s => `
+        <div class="summary-item">
+          <div class="summary-label">
+            <i data-lucide="${s.icon}" size="14"></i>
+            ${s.label}
+          </div>
+          <div class="text-sm text-muted">${s.text}</div>
+        </div>
+      `).join('');
+      lucide.createIcons({ root: grid });
+
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function showHITLPanel() {
+    document.getElementById('engineerIdle').style.display = 'none';
+    document.getElementById('hitlPanel').style.display = 'flex';
+
+    try {
+      const r = await fetch(`${API}/incidents/${selectedId}/report`, { headers: apiHeaders });
+      if (r.ok) {
+        const rep = await r.json();
+        const hyp = rep.root_cause?.hypothesis || 'Unable to determine root cause — confidence too low.';
+        document.getElementById('hitlHypothesis').textContent = hyp;
+      }
+    } catch {}
+  }
+
+  async function submitHITL() {
+    const input = document.getElementById('hitlInput').value.trim();
+    if (input.length < 10) {
+      toast('Please provide at least 10 characters.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('hitlSubmitBtn');
+    btn.disabled = true;
+    
+    try {
+      const r = await fetch(`${API}/incidents/${selectedId}/resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...apiHeaders },
+        body: JSON.stringify({ human_input: input })
+      });
+      if (r.ok) {
+        toast('Context submitted. Agent resuming...', 'success');
+        document.getElementById('hitlPanel').style.display = 'none';
+        document.getElementById('engineerIdle').style.display = 'flex';
+        document.getElementById('hitlInput').value = '';
+        connectStream(selectedId);
+      } else {
+        const err = await r.json();
+        toast(err.detail || 'Failed to submit', 'error');
+      }
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function skipHITL() {
+    document.getElementById('hitlPanel').style.display = 'none';
+    document.getElementById('engineerIdle').style.display = 'flex';
+    toast('Skipped review.', 'info');
+  }
+
+  function openModal() {
+    document.getElementById('triggerModal').classList.add('open');
+    document.getElementById('fAlertId').value = `INC-${Date.now().toString().slice(-6)}`;
+  }
+  
+  function closeModal() {
+    document.getElementById('triggerModal').classList.remove('open');
+  }
+
+  async function triggerIncident() {
+    const payload = {
+      alert_id: document.getElementById('fAlertId').value.trim(),
+      service: document.getElementById('fService').value.trim(),
+      severity: document.getElementById('fSeverity').value,
+      description: document.getElementById('fDescription').value.trim(),
+      environment: document.getElementById('fEnvironment').value.trim() || 'production'
+    };
+
+    if (!payload.alert_id || !payload.service || !payload.description) {
+      toast('Please fill all required fields.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('triggerSubmitBtn');
+    btn.disabled = true;
+
+    try {
+      const r = await fetch(`${API}/incidents/trigger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...apiHeaders },
+        body: JSON.stringify(payload)
+      });
+      if (r.ok) {
+        toast('Investigation started', 'success');
+        closeModal();
+        await loadIncidents();
+        setTimeout(() => selectIncident(payload.alert_id), 100);
+      } else {
+        const data = await r.json();
+        toast(data.detail || 'Failed to trigger', 'error');
+      }
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('triggerModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  function toast(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    
+    let icon = 'info';
+    if (type === 'success') icon = 'check-circle-2';
+    if (type === 'error') icon = 'alert-circle';
+    
+    el.innerHTML = `
+      <div class="toast-icon"><i data-lucide="${icon}" size="16"></i></div>
+      <div>${msg}</div>
+    `;
+    container.appendChild(el);
+    lucide.createIcons({ root: el });
+    
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(100%)';
+      el.style.transition = 'all 0.2s';
+      setTimeout(() => el.remove(), 200);
+    }, 4000);
+  }
+</script>
+</body>
+</html>

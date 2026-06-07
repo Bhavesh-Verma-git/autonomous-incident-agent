@@ -1,0 +1,32 @@
+# Environments
+.env
+.venv/
+venv/
+env/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Agent Memory (Do not commit DBs with past incident data)
+memory/chroma_db/
+memory/checkpoints.db
+*.db
+*.sqlite3
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Test / Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Documentation Notes
+CONCEPTUAL_NOTES.md
+DEVELOPER_NOTES.txt
