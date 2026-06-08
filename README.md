@@ -73,6 +73,7 @@ The system uses a custom `ModelRouter` to handle API rate limits without halting
 |----------|----------|-------|-----------|
 | 1 | Groq | Llama 3.3 70B | Primary default |
 | 2 | OpenAI | GPT-4o-mini | Fallback when Groq is rate-limited |
+| 3 | Gemini | Gemini 1.5 Flash | Fallback when OpenAI is rate-limited |
 
 ## Known Limitations & Failure Modes
 
@@ -80,7 +81,7 @@ The system uses a custom `ModelRouter` to handle API rate limits without halting
 These incidents lack sufficient signals in the raw logs and metrics for an autonomous decision. The agent correctly identifies the ambiguity and halts execution to request human input, preventing a hallucinated root cause.
 
 2. Rate limit cascading
-When evaluating multiple incidents rapidly, both configured LLM providers can exhaust their rate limits simultaneously. The router implements a 60-second blocking sleep when all providers fail, which delays real-time processing during high-volume evaluation runs.
+When evaluating multiple incidents rapidly, all three configured LLM providers can exhaust their rate limits simultaneously. The router implements a 60-second blocking sleep when all providers fail, which delays real-time processing during high-volume evaluation runs.
 
 3. Synthetic data limitations
 The evaluation dataset relies on generated JSON logs which are cleaner and more structured than real production environments. True production logs contain significantly more noise, unstructured stack traces, and formatting inconsistencies that challenge the retrieval nodes.

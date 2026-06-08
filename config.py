@@ -39,8 +39,9 @@ DELAY_BETWEEN_INCIDENTS = int(os.getenv("DELAY_BETWEEN_INCIDENTS", "15"))
 # --- Model Failover Router ---
 class ModelRouter:
     MODEL_PRIORITY = [
-        {"provider": "groq",   "model": "llama-3.3-70b-versatile"}, # Primary
-        {"provider": "openai", "model": "gpt-4o-mini"},           # Fallback
+        {"provider": "groq",   "model": "llama-3.3-70b-versatile"},        # Primary
+        {"provider": "openai", "model": "gpt-4o-mini"},                    # Fallback 1
+        {"provider": "gemini", "model": "gemini-1.5-flash"},               # Fallback 2
     ]
     
     def __init__(self):
@@ -49,6 +50,7 @@ class ModelRouter:
         self.model_usage_counts = {
             "groq/llama-3.3-70b-versatile": 0,
             "openai/gpt-4o-mini": 0,
+            "gemini/gemini-1.5-flash": 0,
         }
         self.rate_limit_switches = 0
     
@@ -83,6 +85,8 @@ class ModelRouter:
             llm = ChatGroq(model=model, temperature=0.1, api_key=SecretStr(GROQ_API_KEY), max_tokens=2048, max_retries=0)
         elif provider == "openai":
             llm = ChatOpenAI(model=model, temperature=0.1, api_key=SecretStr(OPENAI_API_KEY), max_tokens=2048, max_retries=0)
+        elif provider == "gemini":
+            llm = ChatGoogleGenerativeAI(model=model, temperature=0.1, google_api_key=SecretStr(GEMINI_API_KEY), max_tokens=2048)
         else:
             raise ValueError(f"Unknown provider: {provider}")
         
