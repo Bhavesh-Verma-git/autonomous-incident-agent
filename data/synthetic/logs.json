@@ -1,6 +1,696 @@
 {
   "incidents": [
     {
+      "incident_id": "INC-015",
+      "difficulty_level": "hard",
+      "actual_confidence": 0.0,
+      "timestamp": "INVALID_TIMESTAMP_TO_BREAK_DEPLOYMENTS",
+      "affected_service": "broken-service",
+      "actual_root_cause": "Synthetic API failure triggered by malformed data.",
+      "logs": [
+        {
+          "timestamp": "INVALID",
+          "level": "ERROR",
+          "service": "broken",
+          "message": "err"
+        }
+      ],
+      "metrics": [
+        {
+          "timestamp": "INVALID",
+          "metric_name": "cpu",
+          "value": "NOT_A_FLOAT"
+        }
+      ],
+      "recent_deployments": [
+        {
+          "deploy_id": "D-123",
+          "service": "broken",
+          "version": "1.0",
+          "deployed_at": "INVALID",
+          "deployed_by": "me",
+          "commit_message": "broken",
+          "status": "SUCCESS"
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-012",
+      "difficulty_level": "hard",
+      "actual_root_cause": "Redis cache cluster ran out of memory (maxmemory policy: noeviction). All cache SET operations began failing. Without cache, services fell back to the database. Sudden 10x DB load caused connection pool exhaustion across 4 services simultaneously, creating a platform-wide outage.",
+      "actual_confidence": 0.66,
+      "timestamp": "2024-01-26T20:00:00Z",
+      "affected_service": "platform-wide",
+      "recent_deployments": [
+        {
+          "deploy_id": "DEP-9011",
+          "service": "product-service",
+          "version": "v6.0.0",
+          "deployed_at": "2024-01-26T19:45:00Z",
+          "deployed_by": "deepak.gupta@company.com",
+          "commit_message": "feat: cache product catalog in Redis with 1-hour TTL",
+          "files_changed": [
+            "src/cache/product_cache.py"
+          ],
+          "rollback_available": true,
+          "status": "success",
+          "_design_note": "This deployment WORSENED the problem by adding more data to an already-full Redis. But it did not CAUSE it. Root cause is Redis maxmemory policy. This is a hard cascade."
+        }
+      ],
+      "logs": [
+        {
+          "timestamp": "2024-01-26T19:55:00Z",
+          "level": "WARN",
+          "service": "redis-cluster",
+          "message": "Memory usage at 98%. maxmemory=16GB, used=15.7GB. Policy: noeviction.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-26T20:00:11Z",
+          "level": "ERROR",
+          "service": "product-service",
+          "message": "OOM command not allowed when 'maxmemory' is reached. Redis SET failed for key product:catalog:v2",
+          "trace_id": "tr-bb001",
+          "error_code": "REDIS_OOM"
+        },
+        {
+          "timestamp": "2024-01-26T20:00:15Z",
+          "level": "WARN",
+          "service": "product-service",
+          "message": "Redis cache unavailable. Falling back to PostgreSQL for all product lookups.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-26T20:00:45Z",
+          "level": "WARN",
+          "service": "user-service",
+          "message": "Redis cache unavailable. Falling back to PostgreSQL for session lookups.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-26T20:01:30Z",
+          "level": "ERROR",
+          "service": "postgresql-primary",
+          "message": "Connection pool exhausted. Active: 200/200. Waiting: 847. Multiple services calling DB directly.",
+          "trace_id": "tr-bb021",
+          "error_code": "DB_POOL_EXHAUSTED"
+        },
+        {
+          "timestamp": "2024-01-26T20:02:00Z",
+          "level": "ERROR",
+          "service": "payments-api",
+          "message": "Cannot acquire DB connection. Platform-wide DB pool saturation.",
+          "trace_id": "tr-bb031",
+          "error_code": "DB_POOL_EXHAUSTED"
+        },
+        {
+          "timestamp": "2024-01-26T20:02:00Z",
+          "level": "ERROR",
+          "service": "order-service",
+          "message": "Cannot acquire DB connection. Platform-wide DB pool saturation.",
+          "trace_id": "tr-bb032",
+          "error_code": "DB_POOL_EXHAUSTED"
+        }
+      ],
+      "metrics": {
+        "redis_memory_used_gb": 15.98,
+        "redis_memory_max_gb": 16.0,
+        "redis_evictions": 0,
+        "redis_rejected_commands_per_min": 14200,
+        "db_connection_pool_active": 200,
+        "db_connection_pool_max": 200,
+        "db_connection_pool_waiting": 847,
+        "affected_services": [
+          "product-service",
+          "user-service",
+          "payments-api",
+          "order-service"
+        ],
+        "platform_error_rate_percent": 78.4
+      }
+    },
+    {
+      "incident_id": "INC-002",
+      "difficulty_level": "hard",
+      "actual_root_cause": "auth-service v3.1.0 introduced a memory leak: JWT blacklist entries are stored in a dict that is never cleaned up. Under sustained load, the process exhausted all available heap memory over 4 hours and triggered OOM kills.",
+      "actual_confidence": 0.74,
+      "timestamp": "2024-01-16T09:15:00Z",
+      "affected_service": "auth-service",
+      "recent_deployments": [
+        {
+          "deploy_id": "DEP-8851",
+          "service": "auth-service",
+          "version": "v3.1.0",
+          "deployed_at": "2024-01-16T05:00:00Z",
+          "deployed_by": "kavya.reddy@company.com",
+          "commit_message": "security: add JWT token revocation blacklist",
+          "files_changed": [
+            "src/auth/jwt_validator.py",
+            "src/cache/blacklist.py"
+          ],
+          "rollback_available": true,
+          "status": "success",
+          "_design_note": "4 HOUR GAP before errors. Hard because the temporal distance makes the deployment look less suspicious."
+        }
+      ],
+      "logs": [
+        {
+          "timestamp": "2024-01-16T05:00:42Z",
+          "level": "INFO",
+          "service": "auth-service",
+          "message": "Deployment v3.1.0 live. JWT blacklist feature enabled.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-16T06:30:00Z",
+          "level": "INFO",
+          "service": "auth-service",
+          "message": "JWT blacklist initialized. Current entries: 0",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-16T07:45:00Z",
+          "level": "WARN",
+          "service": "auth-service",
+          "message": "Heap memory at 65%. JWT blacklist entries: 84,219",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-16T08:30:00Z",
+          "level": "WARN",
+          "service": "auth-service",
+          "message": "Heap memory at 81%. GC pressure increasing. JWT blacklist entries: 189,441",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-16T09:05:00Z",
+          "level": "ERROR",
+          "service": "auth-service",
+          "message": "java.lang.OutOfMemoryError: Java heap space at com.company.auth.BlacklistCache.add()",
+          "trace_id": "tr-11021",
+          "error_code": "OOM"
+        },
+        {
+          "timestamp": "2024-01-16T09:08:00Z",
+          "level": "ERROR",
+          "service": "auth-service",
+          "message": "Pod auth-service-7d8f9c-xkp2m killed by OOM killer. Restarting...",
+          "trace_id": null,
+          "error_code": "OOM_KILL"
+        },
+        {
+          "timestamp": "2024-01-16T09:10:00Z",
+          "level": "ERROR",
+          "service": "auth-service",
+          "message": "Pod restarted but memory growing again immediately. BlacklistCache.size()=0 on restart, adding entries at 420/min",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-16T09:15:00Z",
+          "level": "ERROR",
+          "service": "auth-service",
+          "message": "Authentication failures spiking. Downstream services returning 401.",
+          "trace_id": "tr-11209"
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 28.7,
+        "latency_p99_ms": 3200,
+        "cpu_percent": 44,
+        "memory_percent": 94,
+        "memory_used_gb": 7.52,
+        "memory_limit_gb": 8.0,
+        "pod_restarts_last_hour": 3,
+        "jwt_blacklist_entries": 189441,
+        "heap_used_mb": 7680,
+        "_design_note": "HARD: 4-hour gap, no error_code pointing to deployment. Must reason: OOM + blacklist entries growing = unbounded cache = new feature = deployment."
+      }
+    },
+    {
+      "incident_id": "INC-015",
+      "difficulty_level": "medium",
+      "actual_root_cause": "FALSE ALARM. The nightly batch-processor job runs at 03:00 AM UTC and processes 2M records. For 45 minutes, it consumes 70% CPU and elevates DB read latency. Monitoring alerts fire every night but the job always completes successfully. This is expected behavior.",
+      "actual_confidence": 0.89,
+      "timestamp": "2024-01-29T03:15:00Z",
+      "affected_service": "batch-processor",
+      "recent_deployments": [],
+      "logs": [
+        {
+          "timestamp": "2024-01-29T03:00:01Z",
+          "level": "INFO",
+          "service": "batch-processor",
+          "message": "Nightly batch job started. Records to process: 2,143,882.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-29T03:15:00Z",
+          "level": "WARN",
+          "service": "monitoring",
+          "message": "ALERT: batch-processor CPU at 71%. Threshold: 70%. Auto-generated alert.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-29T03:15:00Z",
+          "level": "WARN",
+          "service": "monitoring",
+          "message": "ALERT: DB read latency elevated to 2,200ms (baseline: 120ms).",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-29T03:30:00Z",
+          "level": "INFO",
+          "service": "batch-processor",
+          "message": "Progress: 1,200,000 / 2,143,882 records. Estimated completion: 03:45 UTC.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-29T03:47:00Z",
+          "level": "INFO",
+          "service": "batch-processor",
+          "message": "Nightly batch complete. 2,143,882 records processed. 0 errors. Duration: 47 minutes.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-29T03:48:00Z",
+          "level": "INFO",
+          "service": "monitoring",
+          "message": "RESOLVED: CPU and DB latency returned to baseline. Batch job completed successfully.",
+          "trace_id": null
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 0.0,
+        "cpu_percent_during_batch": 71,
+        "cpu_percent_after_batch": 12,
+        "db_read_latency_during_batch_ms": 2200,
+        "db_read_latency_baseline_ms": 120,
+        "records_processed": 2143882,
+        "records_failed": 0,
+        "batch_duration_minutes": 47,
+        "_expected_behavior": "This fires every single night. Should be excluded from incident tracking or alert threshold should be raised."
+      }
+    },
+    {
+      "incident_id": "INC-011",
+      "difficulty_level": "easy",
+      "actual_root_cause": "SendGrid's email delivery API started returning HTTP 503 with a 45-second timeout. The analytics-service queues email reports and all jobs are hanging waiting for SendGrid, causing the job queue to fill up.",
+      "actual_confidence": 0.95,
+      "timestamp": "2024-01-25T10:30:00Z",
+      "affected_service": "analytics-service",
+      "recent_deployments": [],
+      "logs": [
+        {
+          "timestamp": "2024-01-25T10:28:00Z",
+          "level": "ERROR",
+          "service": "analytics-service",
+          "message": "SendGrid API timeout after 45000ms. Endpoint: https://api.sendgrid.com/v3/mail/send. Job: weekly-report-batch-4421",
+          "trace_id": "tr-aa001",
+          "error_code": "SENDGRID_TIMEOUT"
+        },
+        {
+          "timestamp": "2024-01-25T10:29:00Z",
+          "level": "WARN",
+          "service": "analytics-service",
+          "message": "Email job queue filling up. 47 jobs waiting. Workers stuck on SendGrid calls.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-25T10:30:00Z",
+          "level": "ERROR",
+          "service": "analytics-service",
+          "message": "Job queue at maximum capacity (100 jobs). New jobs being rejected.",
+          "trace_id": "tr-aa011",
+          "error_code": "QUEUE_FULL"
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 100.0,
+        "sendgrid_api_success_rate_percent": 0.0,
+        "sendgrid_timeout_rate_percent": 100.0,
+        "email_job_queue_size": 100,
+        "email_job_queue_max": 100,
+        "cpu_percent": 15,
+        "memory_percent": 32,
+        "latency_p99_ms": 45000
+      }
+    },
+    {
+      "incident_id": "INC-012",
+      "difficulty_level": "hard",
+      "actual_confidence": 0.0,
+      "timestamp": "INVALID_TIMESTAMP_TO_BREAK_DEPLOYMENTS",
+      "affected_service": "broken-service",
+      "actual_root_cause": "Synthetic API failure triggered by malformed data.",
+      "logs": [
+        {
+          "timestamp": "INVALID",
+          "level": "ERROR",
+          "service": "broken",
+          "message": "err"
+        }
+      ],
+      "metrics": [
+        {
+          "timestamp": "INVALID",
+          "metric_name": "cpu",
+          "value": "NOT_A_FLOAT"
+        }
+      ],
+      "recent_deployments": [
+        {
+          "deploy_id": "D-123",
+          "service": "broken",
+          "version": "1.0",
+          "deployed_at": "INVALID",
+          "deployed_by": "me",
+          "commit_message": "broken",
+          "status": "SUCCESS"
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-020",
+      "difficulty_level": "hard",
+      "actual_root_cause": "Hypothesis: The root cause of the incident is a memory leak caused by the deployment of v2.5.0, leading to OOM kills.\nCore Cause: Memory leak causing Out of Memory (OOM) kills\nTechnical Details: service 'image-processor', version 'v2.5.0', metric 'memory_percent' hitting 100%\nChain of Events: The deployment of v2.5.0 introduced an unoptimized image caching mechanism. This caused the memory to gradually fill up, eventually exhausting the container's RAM. The OS then triggered OOM kills on the pods, resulting in dropped requests and increased error rates.",
+      "actual_confidence": 0.85,
+      "timestamp": "2024-02-01T10:00:00Z",
+      "affected_service": "image-processor",
+      "recent_deployments": [
+        {
+          "deploy_id": "DEP-9001",
+          "service": "image-processor",
+          "version": "v2.5.0",
+          "deployed_at": "2024-02-01T08:00:00Z",
+          "deployed_by": "auto@company.com",
+          "commit_message": "feat: new image cache",
+          "files_changed": [
+            "src/cache.py"
+          ],
+          "rollback_available": true,
+          "status": "success"
+        }
+      ],
+      "logs": [
+        {
+          "timestamp": "2024-02-01T09:45:00Z",
+          "level": "WARN",
+          "service": "image-processor",
+          "message": "Memory utilization at 95%"
+        },
+        {
+          "timestamp": "2024-02-01T09:55:00Z",
+          "level": "ERROR",
+          "service": "image-processor",
+          "message": "Process killed by OOM killer"
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 15.0,
+        "memory_percent": 100.0,
+        "cpu_percent": 40.0
+      }
+    },
+    {
+      "incident_id": "INC-013",
+      "difficulty_level": "hard",
+      "actual_confidence": 0.0,
+      "timestamp": "INVALID_TIMESTAMP_TO_BREAK_DEPLOYMENTS",
+      "affected_service": "broken-service",
+      "actual_root_cause": "Synthetic API failure triggered by malformed data.",
+      "logs": [
+        {
+          "timestamp": "INVALID",
+          "level": "ERROR",
+          "service": "broken",
+          "message": "err"
+        }
+      ],
+      "metrics": [
+        {
+          "timestamp": "INVALID",
+          "metric_name": "cpu",
+          "value": "NOT_A_FLOAT"
+        }
+      ],
+      "recent_deployments": [
+        {
+          "deploy_id": "D-123",
+          "service": "broken",
+          "version": "1.0",
+          "deployed_at": "INVALID",
+          "deployed_by": "me",
+          "commit_message": "broken",
+          "status": "SUCCESS"
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-007",
+      "difficulty_level": "easy",
+      "actual_root_cause": "The report-generator service runs daily analytics queries that take 45-90 minutes. At peak volume, 8 concurrent reports each held a DB connection for the full duration, exhausting the connection pool (size: 10) and blocking all other operations.",
+      "actual_confidence": 0.93,
+      "timestamp": "2024-01-21T03:15:00Z",
+      "affected_service": "report-generator",
+      "recent_deployments": [],
+      "logs": [
+        {
+          "timestamp": "2024-01-21T02:00:00Z",
+          "level": "INFO",
+          "service": "report-generator",
+          "message": "Scheduled report generation started. Jobs queued: 8",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-21T02:01:00Z",
+          "level": "INFO",
+          "service": "report-generator",
+          "message": "DB connections acquired: 8/10. Running report jobs.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-21T03:12:00Z",
+          "level": "WARN",
+          "service": "report-generator",
+          "message": "DB connection pool exhausted. 2 remaining connections held by long-running report queries (>70 min).",
+          "trace_id": "tr-66001"
+        },
+        {
+          "timestamp": "2024-01-21T03:15:00Z",
+          "level": "ERROR",
+          "service": "report-generator",
+          "message": "API request failed: Cannot acquire DB connection. Pool size 10, all in use by background reports.",
+          "trace_id": "tr-66021",
+          "error_code": "DB_POOL_EXHAUSTED"
+        },
+        {
+          "timestamp": "2024-01-21T03:15:00Z",
+          "level": "ERROR",
+          "service": "api-gateway",
+          "message": "report-generator returning 503. Affected endpoints: /api/v1/reports/*, /api/v1/dashboard/*",
+          "trace_id": null
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 87.3,
+        "latency_p99_ms": 30000,
+        "db_connections_active": 10,
+        "db_connections_waiting": 34,
+        "long_running_queries_count": 8,
+        "longest_query_duration_min": 73,
+        "cpu_percent": 41,
+        "memory_percent": 55,
+        "_no_deployment": "No recent deployment. Resource exhaustion from scheduled batch job."
+      }
+    },
+    {
+      "incident_id": "INC-003",
+      "difficulty_level": "easy",
+      "actual_root_cause": "Deployment v1.2.0 removed a null-check for `user.preferences` in the email template renderer. When any user with no saved preferences triggers a notification, the service crashes with NullPointerException immediately.",
+      "actual_confidence": 0.96,
+      "timestamp": "2024-01-17T14:33:00Z",
+      "affected_service": "notification-service",
+      "recent_deployments": [
+        {
+          "deploy_id": "DEP-8901",
+          "service": "notification-service",
+          "version": "v1.2.0",
+          "deployed_at": "2024-01-17T14:30:00Z",
+          "deployed_by": "rahul.kumar@company.com",
+          "commit_message": "feat: personalized email templates using user preferences",
+          "files_changed": [
+            "src/templates/email_renderer.py"
+          ],
+          "rollback_available": true,
+          "status": "success",
+          "_design_note": "3-MINUTE GAP. Extremely obvious. Version deployed, crashes start 3 min later. Easy test case."
+        }
+      ],
+      "logs": [
+        {
+          "timestamp": "2024-01-17T14:30:08Z",
+          "level": "INFO",
+          "service": "notification-service",
+          "message": "Deployment DEP-8901 successful. v1.2.0 is live.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-17T14:33:12Z",
+          "level": "ERROR",
+          "service": "notification-service",
+          "message": "NullPointerException at email_renderer.py:line 84 in render_personalized(). user.preferences is None.",
+          "trace_id": "tr-22001",
+          "error_code": "NPE"
+        },
+        {
+          "timestamp": "2024-01-17T14:33:13Z",
+          "level": "ERROR",
+          "service": "notification-service",
+          "message": "NullPointerException at email_renderer.py:line 84 in render_personalized(). user.preferences is None.",
+          "trace_id": "tr-22002",
+          "error_code": "NPE"
+        },
+        {
+          "timestamp": "2024-01-17T14:33:13Z",
+          "level": "ERROR",
+          "service": "notification-service",
+          "message": "NullPointerException at email_renderer.py:line 84 in render_personalized(). user.preferences is None.",
+          "trace_id": "tr-22003",
+          "error_code": "NPE"
+        },
+        {
+          "timestamp": "2024-01-17T14:33:45Z",
+          "level": "ERROR",
+          "service": "notification-service",
+          "message": "Error rate: 100%. All notification sends failing. Alerting on-call.",
+          "trace_id": null,
+          "error_code": "SERVICE_DOWN"
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 100.0,
+        "latency_p99_ms": 180,
+        "cpu_percent": 22,
+        "memory_percent": 41,
+        "notifications_sent_last_5min": 0,
+        "notifications_failed_last_5min": 847
+      }
+    },
+    {
+      "incident_id": "INC-005",
+      "difficulty_level": "hard",
+      "actual_root_cause": "order-service v5.3.0 included a feature flag `ENABLE_REAL_TIME_INVENTORY_CHECK` that was accidentally set to `true` in production config. This new code path calls inventory-service synchronously for every item in the cart, but inventory-service has no SLA for synchronous calls, causing 8-12 second latency per order.",
+      "actual_confidence": 0.71,
+      "timestamp": "2024-01-19T16:45:00Z",
+      "affected_service": "order-service",
+      "recent_deployments": [
+        {
+          "deploy_id": "DEP-8944",
+          "service": "order-service",
+          "version": "v5.3.0",
+          "deployed_at": "2024-01-19T16:00:00Z",
+          "deployed_by": "sanjay.patel@company.com",
+          "commit_message": "feat: real-time inventory check (behind feature flag, off by default)",
+          "files_changed": [
+            "src/checkout/order_processor.py",
+            "config/feature_flags.yaml"
+          ],
+          "rollback_available": true,
+          "status": "success"
+        }
+      ],
+      "logs": [
+        {
+          "timestamp": "2024-01-19T16:44:01Z",
+          "level": "WARN",
+          "service": "order-service",
+          "message": "Feature flag ENABLE_REAL_TIME_INVENTORY_CHECK is TRUE. Real-time sync calls enabled.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-19T16:44:33Z",
+          "level": "WARN",
+          "service": "inventory-service",
+          "message": "Unexpected synchronous call pattern detected. Caller: order-service. This endpoint is designed for async use only.",
+          "trace_id": "tr-44011"
+        },
+        {
+          "timestamp": "2024-01-19T16:45:12Z",
+          "level": "ERROR",
+          "service": "order-service",
+          "message": "Checkout timed out for cart CART-88421 (18 items). inventory-service sync call: 11,204ms. Threshold: 10,000ms.",
+          "trace_id": "tr-44021",
+          "error_code": "CHECKOUT_TIMEOUT"
+        },
+        {
+          "timestamp": "2024-01-19T16:48:00Z",
+          "level": "WARN",
+          "service": "order-service",
+          "message": "Thread pool utilization at 89%. Requests queuing due to slow inventory-service calls.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-19T16:50:00Z",
+          "level": "WARN",
+          "service": "inventory-service",
+          "message": "Incoming request rate from order-service increased 40x in last 10 minutes. Not designed for this load pattern.",
+          "trace_id": null,
+          "_design_note": "Hard: inventory-service is being hammered. Agent might incorrectly blame inventory-service. Must trace back to feature flag."
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 22.1,
+        "latency_p99_ms": 11800,
+        "cpu_percent": 61,
+        "memory_percent": 63,
+        "thread_pool_utilization_percent": 89,
+        "inventory_service_call_rate_per_min": 4200,
+        "inventory_service_call_rate_baseline_per_min": 105,
+        "_red_herring": "inventory-service metrics look terrible. CPU 78%, latency 9s. But it's a VICTIM, not the cause. Agent must identify the feature flag as root cause."
+      }
+    },
+    {
+      "incident_id": "INC-021",
+      "difficulty_level": "hard",
+      "actual_root_cause": "Hypothesis: The incident was caused by Redis connection exhaustion due to a misconfigured timeout setting in v3.1.2.\nCore Cause: Redis connection pool exhaustion\nTechnical Details: service 'session-service', version 'v3.1.2', Redis connection timeout set too high\nChain of Events: The release of v3.1.2 included a change to the Redis client configuration, increasing the timeout to an excessively high value. When a minor network blip occurred, connections hung open instead of dropping. This quickly exhausted the available connection pool, preventing new sessions from being created and causing 500 errors for users.",
+      "actual_confidence": 0.88,
+      "timestamp": "2024-02-02T11:00:00Z",
+      "affected_service": "session-service",
+      "recent_deployments": [
+        {
+          "deploy_id": "DEP-9002",
+          "service": "session-service",
+          "version": "v3.1.2",
+          "deployed_at": "2024-02-02T10:00:00Z",
+          "deployed_by": "dev@company.com",
+          "commit_message": "fix: increase redis timeout",
+          "files_changed": [
+            "config/redis.yml"
+          ],
+          "rollback_available": true,
+          "status": "success"
+        }
+      ],
+      "logs": [
+        {
+          "timestamp": "2024-02-02T10:50:00Z",
+          "level": "WARN",
+          "service": "session-service",
+          "message": "Redis connection pool at 90% capacity"
+        },
+        {
+          "timestamp": "2024-02-02T10:55:00Z",
+          "level": "ERROR",
+          "service": "session-service",
+          "message": "RedisTimeoutError: Unable to acquire connection from pool"
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 25.0,
+        "redis_connections": 5000,
+        "latency_p99_ms": 15000
+      }
+    },
+    {
       "incident_id": "INC-001",
       "difficulty_level": "medium",
       "actual_root_cause": "Deployment of v2.4.1 introduced an N+1 SQL query in the order lookup function. Under production load, each API request now executes 47 queries instead of 1, exhausting the database connection pool after ~12 minutes of traffic.",
@@ -122,173 +812,183 @@
       }
     },
     {
-      "incident_id": "INC-002",
+      "incident_id": "INC-013",
       "difficulty_level": "hard",
-      "actual_root_cause": "auth-service v3.1.0 introduced a memory leak: JWT blacklist entries are stored in a dict that is never cleaned up. Under sustained load, the process exhausted all available heap memory over 4 hours and triggered OOM kills.",
-      "actual_confidence": 0.74,
-      "timestamp": "2024-01-16T09:15:00Z",
-      "affected_service": "auth-service",
-      "recent_deployments": [
-        {
-          "deploy_id": "DEP-8851",
-          "service": "auth-service",
-          "version": "v3.1.0",
-          "deployed_at": "2024-01-16T05:00:00Z",
-          "deployed_by": "kavya.reddy@company.com",
-          "commit_message": "security: add JWT token revocation blacklist",
-          "files_changed": [
-            "src/auth/jwt_validator.py",
-            "src/cache/blacklist.py"
-          ],
-          "rollback_available": true,
-          "status": "success",
-          "_design_note": "4 HOUR GAP before errors. Hard because the temporal distance makes the deployment look less suspicious."
-        }
-      ],
+      "actual_root_cause": "inventory-service began running a slow database migration query (alter table adding index on 50M rows) which locked the inventory table. checkout-service calls to inventory began timing out at 30s. This filled checkout's thread pool, causing checkout to stop responding. order-service, which calls checkout, then also became unresponsive \u2014 cascading failure across 3 services.",
+      "actual_confidence": 0.63,
+      "timestamp": "2024-01-27T11:30:00Z",
+      "affected_service": "checkout-service",
+      "recent_deployments": [],
       "logs": [
         {
-          "timestamp": "2024-01-16T05:00:42Z",
+          "timestamp": "2024-01-27T11:00:00Z",
           "level": "INFO",
-          "service": "auth-service",
-          "message": "Deployment v3.1.0 live. JWT blacklist feature enabled.",
+          "service": "inventory-service",
+          "message": "Running DB migration: ALTER TABLE inventory ADD INDEX idx_sku_warehouse (sku_id, warehouse_id). Estimated time: 45 min.",
           "trace_id": null
         },
         {
-          "timestamp": "2024-01-16T06:30:00Z",
-          "level": "INFO",
-          "service": "auth-service",
-          "message": "JWT blacklist initialized. Current entries: 0",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-16T07:45:00Z",
+          "timestamp": "2024-01-27T11:15:00Z",
           "level": "WARN",
-          "service": "auth-service",
-          "message": "Heap memory at 65%. JWT blacklist entries: 84,219",
+          "service": "inventory-service",
+          "message": "Table lock on `inventory` detected during migration. Read queries may be slow.",
           "trace_id": null
         },
         {
-          "timestamp": "2024-01-16T08:30:00Z",
+          "timestamp": "2024-01-27T11:20:00Z",
           "level": "WARN",
-          "service": "auth-service",
-          "message": "Heap memory at 81%. GC pressure increasing. JWT blacklist entries: 189,441",
+          "service": "checkout-service",
+          "message": "inventory-service response time degrading. P99 at 18,000ms. Threshold: 5,000ms.",
           "trace_id": null
         },
         {
-          "timestamp": "2024-01-16T09:05:00Z",
+          "timestamp": "2024-01-27T11:28:00Z",
           "level": "ERROR",
-          "service": "auth-service",
-          "message": "java.lang.OutOfMemoryError: Java heap space at com.company.auth.BlacklistCache.add()",
-          "trace_id": "tr-11021",
-          "error_code": "OOM"
+          "service": "checkout-service",
+          "message": "Thread pool at 95% utilization. 180 threads blocked waiting for inventory-service responses.",
+          "trace_id": "tr-cc011"
         },
         {
-          "timestamp": "2024-01-16T09:08:00Z",
+          "timestamp": "2024-01-27T11:30:00Z",
           "level": "ERROR",
-          "service": "auth-service",
-          "message": "Pod auth-service-7d8f9c-xkp2m killed by OOM killer. Restarting...",
-          "trace_id": null,
-          "error_code": "OOM_KILL"
+          "service": "checkout-service",
+          "message": "Thread pool exhausted. Rejecting new checkout requests. HTTP 503 returned.",
+          "trace_id": "tr-cc021",
+          "error_code": "THREAD_POOL_EXHAUSTED"
         },
         {
-          "timestamp": "2024-01-16T09:10:00Z",
+          "timestamp": "2024-01-27T11:31:00Z",
           "level": "ERROR",
-          "service": "auth-service",
-          "message": "Pod restarted but memory growing again immediately. BlacklistCache.size()=0 on restart, adding entries at 420/min",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-16T09:15:00Z",
-          "level": "ERROR",
-          "service": "auth-service",
-          "message": "Authentication failures spiking. Downstream services returning 401.",
-          "trace_id": "tr-11209"
+          "service": "order-service",
+          "message": "checkout-service returning 503. Order placement failing. Cascading from checkout outage.",
+          "trace_id": "tr-cc031",
+          "error_code": "UPSTREAM_503"
         }
       ],
       "metrics": {
-        "error_rate_percent": 28.7,
-        "latency_p99_ms": 3200,
-        "cpu_percent": 44,
-        "memory_percent": 94,
-        "memory_used_gb": 7.52,
-        "memory_limit_gb": 8.0,
-        "pod_restarts_last_hour": 3,
-        "jwt_blacklist_entries": 189441,
-        "heap_used_mb": 7680,
-        "_design_note": "HARD: 4-hour gap, no error_code pointing to deployment. Must reason: OOM + blacklist entries growing = unbounded cache = new feature = deployment."
+        "inventory_service_latency_p99_ms": 32000,
+        "inventory_db_lock_wait_ms": 29000,
+        "checkout_thread_pool_utilization_percent": 100,
+        "checkout_error_rate_percent": 91.2,
+        "order_service_error_rate_percent": 88.4,
+        "db_migration_progress_percent": 34,
+        "cpu_percent_checkout": 22,
+        "_cascade_pattern": "Root: DB migration lock -> inventory slow -> checkout threads blocked -> checkout down -> order-service down"
       }
     },
     {
-      "incident_id": "INC-003",
+      "incident_id": "INC-008",
       "difficulty_level": "easy",
-      "actual_root_cause": "Deployment v1.2.0 removed a null-check for `user.preferences` in the email template renderer. When any user with no saved preferences triggers a notification, the service crashes with NullPointerException immediately.",
-      "actual_confidence": 0.96,
-      "timestamp": "2024-01-17T14:33:00Z",
-      "affected_service": "notification-service",
-      "recent_deployments": [
-        {
-          "deploy_id": "DEP-8901",
-          "service": "notification-service",
-          "version": "v1.2.0",
-          "deployed_at": "2024-01-17T14:30:00Z",
-          "deployed_by": "rahul.kumar@company.com",
-          "commit_message": "feat: personalized email templates using user preferences",
-          "files_changed": [
-            "src/templates/email_renderer.py"
-          ],
-          "rollback_available": true,
-          "status": "success",
-          "_design_note": "3-MINUTE GAP. Extremely obvious. Version deployed, crashes start 3 min later. Easy test case."
-        }
-      ],
+      "actual_root_cause": "The media-service has unrotated access logs filling the /var/log partition. At 100% disk usage, the application cannot write new logs or temp files, causing all video upload operations to fail with a generic IOError.",
+      "actual_confidence": 0.97,
+      "timestamp": "2024-01-22T17:40:00Z",
+      "affected_service": "media-service",
+      "recent_deployments": [],
       "logs": [
         {
-          "timestamp": "2024-01-17T14:30:08Z",
-          "level": "INFO",
-          "service": "notification-service",
-          "message": "Deployment DEP-8901 successful. v1.2.0 is live.",
+          "timestamp": "2024-01-22T17:35:00Z",
+          "level": "WARN",
+          "service": "media-service",
+          "message": "Disk usage on /var/log: 91%. Log rotation has not run in 14 days.",
           "trace_id": null
         },
         {
-          "timestamp": "2024-01-17T14:33:12Z",
-          "level": "ERROR",
-          "service": "notification-service",
-          "message": "NullPointerException at email_renderer.py:line 84 in render_personalized(). user.preferences is None.",
-          "trace_id": "tr-22001",
-          "error_code": "NPE"
+          "timestamp": "2024-01-22T17:38:00Z",
+          "level": "WARN",
+          "service": "media-service",
+          "message": "Disk usage on /var/log: 97%. Approaching critical threshold.",
+          "trace_id": null
         },
         {
-          "timestamp": "2024-01-17T14:33:13Z",
+          "timestamp": "2024-01-22T17:40:11Z",
           "level": "ERROR",
-          "service": "notification-service",
-          "message": "NullPointerException at email_renderer.py:line 84 in render_personalized(). user.preferences is None.",
-          "trace_id": "tr-22002",
-          "error_code": "NPE"
+          "service": "media-service",
+          "message": "IOError: No space left on device. Failed to write temp file for video upload job-99821.",
+          "trace_id": "tr-77011",
+          "error_code": "NO_SPACE_LEFT"
         },
         {
-          "timestamp": "2024-01-17T14:33:13Z",
+          "timestamp": "2024-01-22T17:40:12Z",
           "level": "ERROR",
-          "service": "notification-service",
-          "message": "NullPointerException at email_renderer.py:line 84 in render_personalized(). user.preferences is None.",
-          "trace_id": "tr-22003",
-          "error_code": "NPE"
+          "service": "media-service",
+          "message": "IOError: No space left on device. Failed to write temp file for video upload job-99822.",
+          "trace_id": "tr-77012",
+          "error_code": "NO_SPACE_LEFT"
         },
         {
-          "timestamp": "2024-01-17T14:33:45Z",
+          "timestamp": "2024-01-22T17:41:00Z",
           "level": "ERROR",
-          "service": "notification-service",
-          "message": "Error rate: 100%. All notification sends failing. Alerting on-call.",
-          "trace_id": null,
-          "error_code": "SERVICE_DOWN"
+          "service": "media-service",
+          "message": "All video upload operations failing. Error: filesystem is read-only due to disk full.",
+          "trace_id": null
         }
       ],
       "metrics": {
         "error_rate_percent": 100.0,
-        "latency_p99_ms": 180,
-        "cpu_percent": 22,
-        "memory_percent": 41,
-        "notifications_sent_last_5min": 0,
-        "notifications_failed_last_5min": 847
+        "disk_usage_percent": 100,
+        "disk_used_gb": 500,
+        "disk_total_gb": 500,
+        "log_file_size_gb": 214,
+        "days_since_log_rotation": 14,
+        "cpu_percent": 18,
+        "memory_percent": 44,
+        "latency_p99_ms": 95
+      }
+    },
+    {
+      "incident_id": "INC-023",
+      "difficulty_level": "hard",
+      "actual_root_cause": "Hypothesis: An external API outage at Stripe caused payment processing to fail, resulting in cascading timeouts.\nCore Cause: External dependency outage (Stripe)\nTechnical Details: service 'payment-gateway', Stripe API returning 502 Bad Gateway\nChain of Events: The external payment provider, Stripe, experienced a regional outage. Our payment-gateway service attempted to process payments but received 502 Bad Gateway errors. Because the fallback mechanism was misconfigured, these requests took the full 30-second timeout before failing, exhausting our internal thread pool and causing a cascade of failures upstream.",
+      "actual_confidence": 0.95,
+      "timestamp": "2024-02-04T14:00:00Z",
+      "affected_service": "payment-gateway",
+      "recent_deployments": [],
+      "logs": [
+        {
+          "timestamp": "2024-02-04T13:50:00Z",
+          "level": "ERROR",
+          "service": "payment-gateway",
+          "message": "Stripe API error: 502 Bad Gateway"
+        },
+        {
+          "timestamp": "2024-02-04T13:58:00Z",
+          "level": "ERROR",
+          "service": "payment-gateway",
+          "message": "Thread pool exhausted waiting for upstream responses"
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 45.0,
+        "external_api_latency_ms": 30000,
+        "active_threads": 1000
+      }
+    },
+    {
+      "incident_id": "INC-022",
+      "difficulty_level": "hard",
+      "actual_root_cause": "Hypothesis: A rogue background job in the reporting-service caused high CPU utilization and starved the main API threads.\nCore Cause: Thread starvation due to background job\nTechnical Details: service 'reporting-service', background cron job consuming 100% CPU, API threads blocked\nChain of Events: A scheduled cron job for generating monthly reports started running. Due to an unindexed database query within the job, it consumed excessive CPU cycles and held onto the Global Interpreter Lock (GIL) / CPU cores for too long. This starved the main HTTP worker threads, causing incoming API requests to queue up and eventually time out with 503 errors.",
+      "actual_confidence": 0.82,
+      "timestamp": "2024-02-03T01:00:00Z",
+      "affected_service": "reporting-service",
+      "recent_deployments": [],
+      "logs": [
+        {
+          "timestamp": "2024-02-03T00:55:00Z",
+          "level": "INFO",
+          "service": "reporting-service",
+          "message": "Starting monthly report generation job"
+        },
+        {
+          "timestamp": "2024-02-03T01:00:00Z",
+          "level": "ERROR",
+          "service": "reporting-service",
+          "message": "HTTP 503: Service Unavailable. Worker queue full."
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 100.0,
+        "cpu_percent": 100.0,
+        "queue_depth": 5000
       }
     },
     {
@@ -376,76 +1076,216 @@
       }
     },
     {
-      "incident_id": "INC-005",
+      "incident_id": "INC-014",
       "difficulty_level": "hard",
-      "actual_root_cause": "order-service v5.3.0 included a feature flag `ENABLE_REAL_TIME_INVENTORY_CHECK` that was accidentally set to `true` in production config. This new code path calls inventory-service synchronously for every item in the cart, but inventory-service has no SLA for synchronous calls, causing 8-12 second latency per order.",
-      "actual_confidence": 0.71,
-      "timestamp": "2024-01-19T16:45:00Z",
-      "affected_service": "order-service",
+      "actual_confidence": 0.0,
+      "timestamp": "INVALID_TIMESTAMP_TO_BREAK_DEPLOYMENTS",
+      "affected_service": "broken-service",
+      "actual_root_cause": "Synthetic API failure triggered by malformed data.",
+      "logs": [
+        {
+          "timestamp": "INVALID",
+          "level": "ERROR",
+          "service": "broken",
+          "message": "err"
+        }
+      ],
+      "metrics": [
+        {
+          "timestamp": "INVALID",
+          "metric_name": "cpu",
+          "value": "NOT_A_FLOAT"
+        }
+      ],
       "recent_deployments": [
         {
-          "deploy_id": "DEP-8944",
-          "service": "order-service",
-          "version": "v5.3.0",
-          "deployed_at": "2024-01-19T16:00:00Z",
-          "deployed_by": "sanjay.patel@company.com",
-          "commit_message": "feat: real-time inventory check (behind feature flag, off by default)",
+          "deploy_id": "D-123",
+          "service": "broken",
+          "version": "1.0",
+          "deployed_at": "INVALID",
+          "deployed_by": "me",
+          "commit_message": "broken",
+          "status": "SUCCESS"
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-024",
+      "difficulty_level": "hard",
+      "actual_root_cause": "Hypothesis: A database schema migration locked a critical table, blocking all read/write operations.\nCore Cause: Database table lock during migration\nTechnical Details: service 'user-service', version 'v4.0.1', ALTER TABLE statement blocking queries\nChain of Events: The deployment of v4.0.1 included a database migration script that added a new column with a default value to the 'users' table. In PostgreSQL, doing this on a large table requires a full table rewrite, which acquired an exclusive lock. This lock blocked all incoming read and write queries to the table. As requests queued up waiting for the lock, the application server hit its maximum connection limit and began returning 500 Internal Server Error to clients.",
+      "actual_confidence": 0.89,
+      "timestamp": "2024-02-05T03:00:00Z",
+      "affected_service": "user-service",
+      "recent_deployments": [
+        {
+          "deploy_id": "DEP-9005",
+          "service": "user-service",
+          "version": "v4.0.1",
+          "deployed_at": "2024-02-05T02:50:00Z",
+          "deployed_by": "dba@company.com",
+          "commit_message": "db: add preferences column",
           "files_changed": [
-            "src/checkout/order_processor.py",
-            "config/feature_flags.yaml"
+            "migrations/005_add_prefs.sql"
           ],
-          "rollback_available": true,
+          "rollback_available": false,
           "status": "success"
         }
       ],
       "logs": [
         {
-          "timestamp": "2024-01-19T16:44:01Z",
-          "level": "WARN",
-          "service": "order-service",
-          "message": "Feature flag ENABLE_REAL_TIME_INVENTORY_CHECK is TRUE. Real-time sync calls enabled.",
-          "trace_id": null
+          "timestamp": "2024-02-05T02:51:00Z",
+          "level": "INFO",
+          "service": "user-service",
+          "message": "Starting DB migration 005_add_prefs.sql"
         },
         {
-          "timestamp": "2024-01-19T16:44:33Z",
+          "timestamp": "2024-02-05T02:55:00Z",
           "level": "WARN",
-          "service": "inventory-service",
-          "message": "Unexpected synchronous call pattern detected. Caller: order-service. This endpoint is designed for async use only.",
-          "trace_id": "tr-44011"
+          "service": "user-service",
+          "message": "Query took longer than 5000ms: SELECT * FROM users"
         },
         {
-          "timestamp": "2024-01-19T16:45:12Z",
+          "timestamp": "2024-02-05T02:58:00Z",
           "level": "ERROR",
-          "service": "order-service",
-          "message": "Checkout timed out for cart CART-88421 (18 items). inventory-service sync call: 11,204ms. Threshold: 10,000ms.",
-          "trace_id": "tr-44021",
-          "error_code": "CHECKOUT_TIMEOUT"
-        },
-        {
-          "timestamp": "2024-01-19T16:48:00Z",
-          "level": "WARN",
-          "service": "order-service",
-          "message": "Thread pool utilization at 89%. Requests queuing due to slow inventory-service calls.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-19T16:50:00Z",
-          "level": "WARN",
-          "service": "inventory-service",
-          "message": "Incoming request rate from order-service increased 40x in last 10 minutes. Not designed for this load pattern.",
-          "trace_id": null,
-          "_design_note": "Hard: inventory-service is being hammered. Agent might incorrectly blame inventory-service. Must trace back to feature flag."
+          "service": "user-service",
+          "message": "Lock wait timeout exceeded; try restarting transaction"
         }
       ],
       "metrics": {
-        "error_rate_percent": 22.1,
-        "latency_p99_ms": 11800,
-        "cpu_percent": 61,
-        "memory_percent": 63,
-        "thread_pool_utilization_percent": 89,
-        "inventory_service_call_rate_per_min": 4200,
-        "inventory_service_call_rate_baseline_per_min": 105,
-        "_red_herring": "inventory-service metrics look terrible. CPU 78%, latency 9s. But it's a VICTIM, not the cause. Agent must identify the feature flag as root cause."
+        "error_rate_percent": 80.0,
+        "db_active_locks": 1,
+        "db_waiting_queries": 450
+      }
+    },
+    {
+      "incident_id": "INC-014",
+      "difficulty_level": "easy",
+      "actual_root_cause": "FALSE ALARM. A YouTube tech influencer posted a review of the product, driving 15x normal traffic for 20 minutes. Metrics spiked (CPU, latency) but auto-scaling handled the load. No errors, no failures. Alert triggered on CPU threshold but system was healthy.",
+      "actual_confidence": 0.94,
+      "timestamp": "2024-01-28T19:00:00Z",
+      "affected_service": "marketing-site",
+      "recent_deployments": [],
+      "logs": [
+        {
+          "timestamp": "2024-01-28T18:55:00Z",
+          "level": "INFO",
+          "service": "marketing-site",
+          "message": "Traffic spike detected. Requests/sec: 8,200 (baseline: 540). Initiating auto-scale.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-28T18:57:00Z",
+          "level": "INFO",
+          "service": "marketing-site",
+          "message": "Auto-scaling triggered. Scaling from 3 to 12 pods.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-28T19:00:00Z",
+          "level": "INFO",
+          "service": "marketing-site",
+          "message": "12 pods running. Traffic normalized. Error rate: 0.02%",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-28T19:02:00Z",
+          "level": "INFO",
+          "service": "marketing-site",
+          "message": "Referral traffic source: youtube.com/watch?v=xyz. Organic viral traffic.",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-28T19:20:00Z",
+          "level": "INFO",
+          "service": "marketing-site",
+          "message": "Traffic returning to baseline. Scaling back to 3 pods.",
+          "trace_id": null
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 0.02,
+        "latency_p99_ms": 890,
+        "latency_p50_ms": 210,
+        "cpu_percent_peak": 88,
+        "cpu_percent_current": 41,
+        "requests_per_second_peak": 8200,
+        "requests_per_second_current": 580,
+        "pod_count_peak": 12,
+        "pod_count_current": 3,
+        "_false_alarm": "CPU hit 88% but error rate is 0.02%. System self-healed. No action required."
+      }
+    },
+    {
+      "incident_id": "INC-009",
+      "difficulty_level": "medium",
+      "actual_root_cause": "Stripe's payment gateway experienced a regional outage in ap-south-1 (Mumbai). All payment processing requests from checkout-service to Stripe's API are returning 503. The issue is entirely external \u2014 no internal code change caused this.",
+      "actual_confidence": 0.88,
+      "timestamp": "2024-01-23T13:20:00Z",
+      "affected_service": "checkout-service",
+      "recent_deployments": [
+        {
+          "deploy_id": "DEP-8991",
+          "service": "checkout-service",
+          "version": "v3.1.4",
+          "deployed_at": "2024-01-23T09:00:00Z",
+          "deployed_by": "maya.singh@company.com",
+          "commit_message": "fix: improve retry logic for payment API calls",
+          "files_changed": [
+            "src/payments/stripe_client.py"
+          ],
+          "rollback_available": true,
+          "status": "success",
+          "_design_note": "RED HERRING: Deploy touched stripe_client.py 4 hours ago. Agent might incorrectly blame this. Key signal: external Stripe status page shows outage."
+        }
+      ],
+      "logs": [
+        {
+          "timestamp": "2024-01-23T13:18:00Z",
+          "level": "ERROR",
+          "service": "checkout-service",
+          "message": "Stripe API returned 503 Service Unavailable. Endpoint: https://api.stripe.com/v1/payment_intents. Response: {error: {type: api_error, message: 'We are having trouble with our servers in the ap-south-1 region'}}",
+          "trace_id": "tr-88011",
+          "error_code": "STRIPE_503"
+        },
+        {
+          "timestamp": "2024-01-23T13:18:30Z",
+          "level": "ERROR",
+          "service": "checkout-service",
+          "message": "Stripe API returned 503. Retry 1/3 failed.",
+          "trace_id": "tr-88012",
+          "error_code": "STRIPE_503"
+        },
+        {
+          "timestamp": "2024-01-23T13:19:00Z",
+          "level": "ERROR",
+          "service": "checkout-service",
+          "message": "Stripe API returned 503. Retry 2/3 failed. Giving up.",
+          "trace_id": "tr-88013",
+          "error_code": "STRIPE_503"
+        },
+        {
+          "timestamp": "2024-01-23T13:20:00Z",
+          "level": "ERROR",
+          "service": "checkout-service",
+          "message": "Payment processing unavailable. All Stripe API calls failing. Incident suspected on Stripe side. Recommend checking https://status.stripe.com",
+          "trace_id": null
+        },
+        {
+          "timestamp": "2024-01-23T13:22:00Z",
+          "level": "INFO",
+          "service": "checkout-service",
+          "message": "No internal errors. Application logic is healthy. All failures originating from external Stripe API.",
+          "trace_id": null
+        }
+      ],
+      "metrics": {
+        "error_rate_percent": 98.1,
+        "stripe_api_success_rate_percent": 0.0,
+        "stripe_api_latency_ms": 30000,
+        "internal_latency_p99_ms": 210,
+        "cpu_percent": 21,
+        "memory_percent": 38,
+        "_external_outage_indicator": "Internal latency (210ms) is completely healthy. All errors come from external Stripe API calls."
       }
     },
     {
@@ -530,196 +1370,6 @@
       }
     },
     {
-      "incident_id": "INC-007",
-      "difficulty_level": "easy",
-      "actual_root_cause": "The report-generator service runs daily analytics queries that take 45-90 minutes. At peak volume, 8 concurrent reports each held a DB connection for the full duration, exhausting the connection pool (size: 10) and blocking all other operations.",
-      "actual_confidence": 0.93,
-      "timestamp": "2024-01-21T03:15:00Z",
-      "affected_service": "report-generator",
-      "recent_deployments": [],
-      "logs": [
-        {
-          "timestamp": "2024-01-21T02:00:00Z",
-          "level": "INFO",
-          "service": "report-generator",
-          "message": "Scheduled report generation started. Jobs queued: 8",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-21T02:01:00Z",
-          "level": "INFO",
-          "service": "report-generator",
-          "message": "DB connections acquired: 8/10. Running report jobs.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-21T03:12:00Z",
-          "level": "WARN",
-          "service": "report-generator",
-          "message": "DB connection pool exhausted. 2 remaining connections held by long-running report queries (>70 min).",
-          "trace_id": "tr-66001"
-        },
-        {
-          "timestamp": "2024-01-21T03:15:00Z",
-          "level": "ERROR",
-          "service": "report-generator",
-          "message": "API request failed: Cannot acquire DB connection. Pool size 10, all in use by background reports.",
-          "trace_id": "tr-66021",
-          "error_code": "DB_POOL_EXHAUSTED"
-        },
-        {
-          "timestamp": "2024-01-21T03:15:00Z",
-          "level": "ERROR",
-          "service": "api-gateway",
-          "message": "report-generator returning 503. Affected endpoints: /api/v1/reports/*, /api/v1/dashboard/*",
-          "trace_id": null
-        }
-      ],
-      "metrics": {
-        "error_rate_percent": 87.3,
-        "latency_p99_ms": 30000,
-        "db_connections_active": 10,
-        "db_connections_waiting": 34,
-        "long_running_queries_count": 8,
-        "longest_query_duration_min": 73,
-        "cpu_percent": 41,
-        "memory_percent": 55,
-        "_no_deployment": "No recent deployment. Resource exhaustion from scheduled batch job."
-      }
-    },
-    {
-      "incident_id": "INC-008",
-      "difficulty_level": "easy",
-      "actual_root_cause": "The media-service has unrotated access logs filling the /var/log partition. At 100% disk usage, the application cannot write new logs or temp files, causing all video upload operations to fail with a generic IOError.",
-      "actual_confidence": 0.97,
-      "timestamp": "2024-01-22T17:40:00Z",
-      "affected_service": "media-service",
-      "recent_deployments": [],
-      "logs": [
-        {
-          "timestamp": "2024-01-22T17:35:00Z",
-          "level": "WARN",
-          "service": "media-service",
-          "message": "Disk usage on /var/log: 91%. Log rotation has not run in 14 days.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-22T17:38:00Z",
-          "level": "WARN",
-          "service": "media-service",
-          "message": "Disk usage on /var/log: 97%. Approaching critical threshold.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-22T17:40:11Z",
-          "level": "ERROR",
-          "service": "media-service",
-          "message": "IOError: No space left on device. Failed to write temp file for video upload job-99821.",
-          "trace_id": "tr-77011",
-          "error_code": "NO_SPACE_LEFT"
-        },
-        {
-          "timestamp": "2024-01-22T17:40:12Z",
-          "level": "ERROR",
-          "service": "media-service",
-          "message": "IOError: No space left on device. Failed to write temp file for video upload job-99822.",
-          "trace_id": "tr-77012",
-          "error_code": "NO_SPACE_LEFT"
-        },
-        {
-          "timestamp": "2024-01-22T17:41:00Z",
-          "level": "ERROR",
-          "service": "media-service",
-          "message": "All video upload operations failing. Error: filesystem is read-only due to disk full.",
-          "trace_id": null
-        }
-      ],
-      "metrics": {
-        "error_rate_percent": 100.0,
-        "disk_usage_percent": 100,
-        "disk_used_gb": 500,
-        "disk_total_gb": 500,
-        "log_file_size_gb": 214,
-        "days_since_log_rotation": 14,
-        "cpu_percent": 18,
-        "memory_percent": 44,
-        "latency_p99_ms": 95
-      }
-    },
-    {
-      "incident_id": "INC-009",
-      "difficulty_level": "medium",
-      "actual_root_cause": "Stripe's payment gateway experienced a regional outage in ap-south-1 (Mumbai). All payment processing requests from checkout-service to Stripe's API are returning 503. The issue is entirely external \u2014 no internal code change caused this.",
-      "actual_confidence": 0.88,
-      "timestamp": "2024-01-23T13:20:00Z",
-      "affected_service": "checkout-service",
-      "recent_deployments": [
-        {
-          "deploy_id": "DEP-8991",
-          "service": "checkout-service",
-          "version": "v3.1.4",
-          "deployed_at": "2024-01-23T09:00:00Z",
-          "deployed_by": "maya.singh@company.com",
-          "commit_message": "fix: improve retry logic for payment API calls",
-          "files_changed": [
-            "src/payments/stripe_client.py"
-          ],
-          "rollback_available": true,
-          "status": "success",
-          "_design_note": "RED HERRING: Deploy touched stripe_client.py 4 hours ago. Agent might incorrectly blame this. Key signal: external Stripe status page shows outage."
-        }
-      ],
-      "logs": [
-        {
-          "timestamp": "2024-01-23T13:18:00Z",
-          "level": "ERROR",
-          "service": "checkout-service",
-          "message": "Stripe API returned 503 Service Unavailable. Endpoint: https://api.stripe.com/v1/payment_intents. Response: {error: {type: api_error, message: 'We are having trouble with our servers in the ap-south-1 region'}}",
-          "trace_id": "tr-88011",
-          "error_code": "STRIPE_503"
-        },
-        {
-          "timestamp": "2024-01-23T13:18:30Z",
-          "level": "ERROR",
-          "service": "checkout-service",
-          "message": "Stripe API returned 503. Retry 1/3 failed.",
-          "trace_id": "tr-88012",
-          "error_code": "STRIPE_503"
-        },
-        {
-          "timestamp": "2024-01-23T13:19:00Z",
-          "level": "ERROR",
-          "service": "checkout-service",
-          "message": "Stripe API returned 503. Retry 2/3 failed. Giving up.",
-          "trace_id": "tr-88013",
-          "error_code": "STRIPE_503"
-        },
-        {
-          "timestamp": "2024-01-23T13:20:00Z",
-          "level": "ERROR",
-          "service": "checkout-service",
-          "message": "Payment processing unavailable. All Stripe API calls failing. Incident suspected on Stripe side. Recommend checking https://status.stripe.com",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-23T13:22:00Z",
-          "level": "INFO",
-          "service": "checkout-service",
-          "message": "No internal errors. Application logic is healthy. All failures originating from external Stripe API.",
-          "trace_id": null
-        }
-      ],
-      "metrics": {
-        "error_rate_percent": 98.1,
-        "stripe_api_success_rate_percent": 0.0,
-        "stripe_api_latency_ms": 30000,
-        "internal_latency_p99_ms": 210,
-        "cpu_percent": 21,
-        "memory_percent": 38,
-        "_external_outage_indicator": "Internal latency (210ms) is completely healthy. All errors come from external Stripe API calls."
-      }
-    },
-    {
       "incident_id": "INC-010",
       "difficulty_level": "hard",
       "actual_root_cause": "The shipping-service hit FedEx API rate limits (1000 req/min). A new marketing campaign drove 8x the normal order volume. FedEx returns HTTP 429, which the shipping-service incorrectly handles as a generic 500, making it look like an internal failure.",
@@ -770,332 +1420,6 @@
         "cpu_percent": 55,
         "memory_percent": 47,
         "_hard_clue": "fedex_api_429_responses is the smoking gun. But it's buried in metrics."
-      }
-    },
-    {
-      "incident_id": "INC-011",
-      "difficulty_level": "easy",
-      "actual_root_cause": "SendGrid's email delivery API started returning HTTP 503 with a 45-second timeout. The analytics-service queues email reports and all jobs are hanging waiting for SendGrid, causing the job queue to fill up.",
-      "actual_confidence": 0.95,
-      "timestamp": "2024-01-25T10:30:00Z",
-      "affected_service": "analytics-service",
-      "recent_deployments": [],
-      "logs": [
-        {
-          "timestamp": "2024-01-25T10:28:00Z",
-          "level": "ERROR",
-          "service": "analytics-service",
-          "message": "SendGrid API timeout after 45000ms. Endpoint: https://api.sendgrid.com/v3/mail/send. Job: weekly-report-batch-4421",
-          "trace_id": "tr-aa001",
-          "error_code": "SENDGRID_TIMEOUT"
-        },
-        {
-          "timestamp": "2024-01-25T10:29:00Z",
-          "level": "WARN",
-          "service": "analytics-service",
-          "message": "Email job queue filling up. 47 jobs waiting. Workers stuck on SendGrid calls.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-25T10:30:00Z",
-          "level": "ERROR",
-          "service": "analytics-service",
-          "message": "Job queue at maximum capacity (100 jobs). New jobs being rejected.",
-          "trace_id": "tr-aa011",
-          "error_code": "QUEUE_FULL"
-        }
-      ],
-      "metrics": {
-        "error_rate_percent": 100.0,
-        "sendgrid_api_success_rate_percent": 0.0,
-        "sendgrid_timeout_rate_percent": 100.0,
-        "email_job_queue_size": 100,
-        "email_job_queue_max": 100,
-        "cpu_percent": 15,
-        "memory_percent": 32,
-        "latency_p99_ms": 45000
-      }
-    },
-    {
-      "incident_id": "INC-012",
-      "difficulty_level": "hard",
-      "actual_root_cause": "Redis cache cluster ran out of memory (maxmemory policy: noeviction). All cache SET operations began failing. Without cache, services fell back to the database. Sudden 10x DB load caused connection pool exhaustion across 4 services simultaneously, creating a platform-wide outage.",
-      "actual_confidence": 0.66,
-      "timestamp": "2024-01-26T20:00:00Z",
-      "affected_service": "platform-wide",
-      "recent_deployments": [
-        {
-          "deploy_id": "DEP-9011",
-          "service": "product-service",
-          "version": "v6.0.0",
-          "deployed_at": "2024-01-26T19:45:00Z",
-          "deployed_by": "deepak.gupta@company.com",
-          "commit_message": "feat: cache product catalog in Redis with 1-hour TTL",
-          "files_changed": [
-            "src/cache/product_cache.py"
-          ],
-          "rollback_available": true,
-          "status": "success",
-          "_design_note": "This deployment WORSENED the problem by adding more data to an already-full Redis. But it did not CAUSE it. Root cause is Redis maxmemory policy. This is a hard cascade."
-        }
-      ],
-      "logs": [
-        {
-          "timestamp": "2024-01-26T19:55:00Z",
-          "level": "WARN",
-          "service": "redis-cluster",
-          "message": "Memory usage at 98%. maxmemory=16GB, used=15.7GB. Policy: noeviction.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-26T20:00:11Z",
-          "level": "ERROR",
-          "service": "product-service",
-          "message": "OOM command not allowed when 'maxmemory' is reached. Redis SET failed for key product:catalog:v2",
-          "trace_id": "tr-bb001",
-          "error_code": "REDIS_OOM"
-        },
-        {
-          "timestamp": "2024-01-26T20:00:15Z",
-          "level": "WARN",
-          "service": "product-service",
-          "message": "Redis cache unavailable. Falling back to PostgreSQL for all product lookups.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-26T20:00:45Z",
-          "level": "WARN",
-          "service": "user-service",
-          "message": "Redis cache unavailable. Falling back to PostgreSQL for session lookups.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-26T20:01:30Z",
-          "level": "ERROR",
-          "service": "postgresql-primary",
-          "message": "Connection pool exhausted. Active: 200/200. Waiting: 847. Multiple services calling DB directly.",
-          "trace_id": "tr-bb021",
-          "error_code": "DB_POOL_EXHAUSTED"
-        },
-        {
-          "timestamp": "2024-01-26T20:02:00Z",
-          "level": "ERROR",
-          "service": "payments-api",
-          "message": "Cannot acquire DB connection. Platform-wide DB pool saturation.",
-          "trace_id": "tr-bb031",
-          "error_code": "DB_POOL_EXHAUSTED"
-        },
-        {
-          "timestamp": "2024-01-26T20:02:00Z",
-          "level": "ERROR",
-          "service": "order-service",
-          "message": "Cannot acquire DB connection. Platform-wide DB pool saturation.",
-          "trace_id": "tr-bb032",
-          "error_code": "DB_POOL_EXHAUSTED"
-        }
-      ],
-      "metrics": {
-        "redis_memory_used_gb": 15.98,
-        "redis_memory_max_gb": 16.0,
-        "redis_evictions": 0,
-        "redis_rejected_commands_per_min": 14200,
-        "db_connection_pool_active": 200,
-        "db_connection_pool_max": 200,
-        "db_connection_pool_waiting": 847,
-        "affected_services": [
-          "product-service",
-          "user-service",
-          "payments-api",
-          "order-service"
-        ],
-        "platform_error_rate_percent": 78.4
-      }
-    },
-    {
-      "incident_id": "INC-013",
-      "difficulty_level": "hard",
-      "actual_root_cause": "inventory-service began running a slow database migration query (alter table adding index on 50M rows) which locked the inventory table. checkout-service calls to inventory began timing out at 30s. This filled checkout's thread pool, causing checkout to stop responding. order-service, which calls checkout, then also became unresponsive \u2014 cascading failure across 3 services.",
-      "actual_confidence": 0.63,
-      "timestamp": "2024-01-27T11:30:00Z",
-      "affected_service": "checkout-service",
-      "recent_deployments": [],
-      "logs": [
-        {
-          "timestamp": "2024-01-27T11:00:00Z",
-          "level": "INFO",
-          "service": "inventory-service",
-          "message": "Running DB migration: ALTER TABLE inventory ADD INDEX idx_sku_warehouse (sku_id, warehouse_id). Estimated time: 45 min.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-27T11:15:00Z",
-          "level": "WARN",
-          "service": "inventory-service",
-          "message": "Table lock on `inventory` detected during migration. Read queries may be slow.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-27T11:20:00Z",
-          "level": "WARN",
-          "service": "checkout-service",
-          "message": "inventory-service response time degrading. P99 at 18,000ms. Threshold: 5,000ms.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-27T11:28:00Z",
-          "level": "ERROR",
-          "service": "checkout-service",
-          "message": "Thread pool at 95% utilization. 180 threads blocked waiting for inventory-service responses.",
-          "trace_id": "tr-cc011"
-        },
-        {
-          "timestamp": "2024-01-27T11:30:00Z",
-          "level": "ERROR",
-          "service": "checkout-service",
-          "message": "Thread pool exhausted. Rejecting new checkout requests. HTTP 503 returned.",
-          "trace_id": "tr-cc021",
-          "error_code": "THREAD_POOL_EXHAUSTED"
-        },
-        {
-          "timestamp": "2024-01-27T11:31:00Z",
-          "level": "ERROR",
-          "service": "order-service",
-          "message": "checkout-service returning 503. Order placement failing. Cascading from checkout outage.",
-          "trace_id": "tr-cc031",
-          "error_code": "UPSTREAM_503"
-        }
-      ],
-      "metrics": {
-        "inventory_service_latency_p99_ms": 32000,
-        "inventory_db_lock_wait_ms": 29000,
-        "checkout_thread_pool_utilization_percent": 100,
-        "checkout_error_rate_percent": 91.2,
-        "order_service_error_rate_percent": 88.4,
-        "db_migration_progress_percent": 34,
-        "cpu_percent_checkout": 22,
-        "_cascade_pattern": "Root: DB migration lock -> inventory slow -> checkout threads blocked -> checkout down -> order-service down"
-      }
-    },
-    {
-      "incident_id": "INC-014",
-      "difficulty_level": "easy",
-      "actual_root_cause": "FALSE ALARM. A YouTube tech influencer posted a review of the product, driving 15x normal traffic for 20 minutes. Metrics spiked (CPU, latency) but auto-scaling handled the load. No errors, no failures. Alert triggered on CPU threshold but system was healthy.",
-      "actual_confidence": 0.94,
-      "timestamp": "2024-01-28T19:00:00Z",
-      "affected_service": "marketing-site",
-      "recent_deployments": [],
-      "logs": [
-        {
-          "timestamp": "2024-01-28T18:55:00Z",
-          "level": "INFO",
-          "service": "marketing-site",
-          "message": "Traffic spike detected. Requests/sec: 8,200 (baseline: 540). Initiating auto-scale.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-28T18:57:00Z",
-          "level": "INFO",
-          "service": "marketing-site",
-          "message": "Auto-scaling triggered. Scaling from 3 to 12 pods.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-28T19:00:00Z",
-          "level": "INFO",
-          "service": "marketing-site",
-          "message": "12 pods running. Traffic normalized. Error rate: 0.02%",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-28T19:02:00Z",
-          "level": "INFO",
-          "service": "marketing-site",
-          "message": "Referral traffic source: youtube.com/watch?v=xyz. Organic viral traffic.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-28T19:20:00Z",
-          "level": "INFO",
-          "service": "marketing-site",
-          "message": "Traffic returning to baseline. Scaling back to 3 pods.",
-          "trace_id": null
-        }
-      ],
-      "metrics": {
-        "error_rate_percent": 0.02,
-        "latency_p99_ms": 890,
-        "latency_p50_ms": 210,
-        "cpu_percent_peak": 88,
-        "cpu_percent_current": 41,
-        "requests_per_second_peak": 8200,
-        "requests_per_second_current": 580,
-        "pod_count_peak": 12,
-        "pod_count_current": 3,
-        "_false_alarm": "CPU hit 88% but error rate is 0.02%. System self-healed. No action required."
-      }
-    },
-    {
-      "incident_id": "INC-015",
-      "difficulty_level": "medium",
-      "actual_root_cause": "FALSE ALARM. The nightly batch-processor job runs at 03:00 AM UTC and processes 2M records. For 45 minutes, it consumes 70% CPU and elevates DB read latency. Monitoring alerts fire every night but the job always completes successfully. This is expected behavior.",
-      "actual_confidence": 0.89,
-      "timestamp": "2024-01-29T03:15:00Z",
-      "affected_service": "batch-processor",
-      "recent_deployments": [],
-      "logs": [
-        {
-          "timestamp": "2024-01-29T03:00:01Z",
-          "level": "INFO",
-          "service": "batch-processor",
-          "message": "Nightly batch job started. Records to process: 2,143,882.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-29T03:15:00Z",
-          "level": "WARN",
-          "service": "monitoring",
-          "message": "ALERT: batch-processor CPU at 71%. Threshold: 70%. Auto-generated alert.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-29T03:15:00Z",
-          "level": "WARN",
-          "service": "monitoring",
-          "message": "ALERT: DB read latency elevated to 2,200ms (baseline: 120ms).",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-29T03:30:00Z",
-          "level": "INFO",
-          "service": "batch-processor",
-          "message": "Progress: 1,200,000 / 2,143,882 records. Estimated completion: 03:45 UTC.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-29T03:47:00Z",
-          "level": "INFO",
-          "service": "batch-processor",
-          "message": "Nightly batch complete. 2,143,882 records processed. 0 errors. Duration: 47 minutes.",
-          "trace_id": null
-        },
-        {
-          "timestamp": "2024-01-29T03:48:00Z",
-          "level": "INFO",
-          "service": "monitoring",
-          "message": "RESOLVED: CPU and DB latency returned to baseline. Batch job completed successfully.",
-          "trace_id": null
-        }
-      ],
-      "metrics": {
-        "error_rate_percent": 0.0,
-        "cpu_percent_during_batch": 71,
-        "cpu_percent_after_batch": 12,
-        "db_read_latency_during_batch_ms": 2200,
-        "db_read_latency_baseline_ms": 120,
-        "records_processed": 2143882,
-        "records_failed": 0,
-        "batch_duration_minutes": 47,
-        "_expected_behavior": "This fires every single night. Should be excluded from incident tracking or alert threshold should be raised."
       }
     }
   ]

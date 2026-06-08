@@ -1,8 +1,11 @@
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, Literal
 from agents.models import (
     Alert, LogAnalysis, MetricAnalysis, DeploymentAnalysis, 
     RootCauseHypothesis, IncidentReport
 )
+
+# Status type for each analysis node
+NodeStatus = Literal["pending", "success", "failed"]
 
 class IncidentState(TypedDict):
     """
@@ -14,7 +17,12 @@ class IncidentState(TypedDict):
     log_analysis: Optional[LogAnalysis]
     metric_analysis: Optional[MetricAnalysis]
     deployment_analysis: Optional[DeploymentAnalysis]
-    
+
+    # ── Node Status Tracking (used by router to detect silent failures) ───────
+    log_status: NodeStatus
+    metric_status: NodeStatus
+    deployment_status: NodeStatus
+
     # ── Memory Phase ──────────────────────────────────────────────────────────
     past_similar_incidents: Optional[list[str]]
     

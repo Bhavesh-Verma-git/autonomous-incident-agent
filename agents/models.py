@@ -42,6 +42,7 @@ class Alert(BaseModel):
     description: str = Field(..., description="Human-readable alert description")
     triggered_at: datetime
     environment: str = Field(default="production")
+    difficulty: str = Field(default="unknown", description="Difficulty level of the incident")
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -139,6 +140,15 @@ class RootCauseHypothesis(BaseModel):
     """
     hypothesis: str = Field(
         description="One clear sentence stating the root cause"
+    )
+    core_cause: str = Field(
+        description="The fundamental high-level core cause (e.g., 'Database lock', 'Network partition')"
+    )
+    technical_details: str = Field(
+        description="Specific technical details including service names, versions, and exact error mechanisms"
+    )
+    chain_of_events: str = Field(
+        description="Step-by-step explanation of how the cause logically led to the observed symptoms"
     )
     supporting_evidence: list[str] = Field(
         description="Bullet-point evidence from logs, metrics, and deployments"

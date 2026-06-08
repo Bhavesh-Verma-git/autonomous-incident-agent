@@ -26,7 +26,7 @@ def get_llm(temperature: float = 0.1):
     # We want a very precise, non-creative model for investigations.
     # Llama 3 is highly capable at 0 temperature.
     primary_llm = ChatGroq(
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
         temperature=temperature,
         api_key=SecretStr(config.GROQ_API_KEY),
         max_tokens=2048,
@@ -79,7 +79,7 @@ def get_structured_llm(output_schema):
         raise ValueError("GROQ_API_KEY is missing! Please set it in your .env file.")
 
     primary_llm = ChatGroq(
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
         temperature=0.1,
         api_key=SecretStr(config.GROQ_API_KEY),
         max_tokens=2048,
@@ -101,7 +101,7 @@ def get_structured_llm(output_schema):
     if getattr(config, "GEMINI_API_KEY", None):
         fallbacks.append(
             ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro",
+                model="gemini-2.0-flash",
                 temperature=0.1,
                 api_key=SecretStr(config.GEMINI_API_KEY),
                 max_tokens=2048,

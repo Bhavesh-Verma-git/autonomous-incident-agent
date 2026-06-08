@@ -65,23 +65,25 @@ def build_graph(checkpointer=None):
     builder.add_node("report_generation_node",   report_generation_node)
     builder.add_node("memory_store_node",        memory_store_node)
 
-    # ── 2. Entry point → parallel analysis → fan-in → memory → correlation ───
-    # Send() launches all three analysis nodes in parallel from START.
-    def start_all_analysis(state: IncidentState):
-        return [
-            Send("log_analysis_node", state),
-            Send("metric_analysis_node", state),
-            Send("deployment_analysis_node", state),
-        ]
-
-    builder.add_conditional_edges(START, start_all_analysis)
-
-    # Fan-in: all three branches converge on join_node.
-    # LangGraph executes join_node exactly ONCE after all three have finished
-    # and merged their partial state — preventing the triple-invocation race.
-    builder.add_edge("log_analysis_node",        "join_node")
-    builder.add_edge("metric_analysis_node",     "join_node")
-    builder.add_edge("deployment_analysis_node", "join_node")
+    # ── 2. Execution Mode (Sequential vs Parallel) ───────────────────────────
+    if getattr(config, "EXECUTION_MODE", "parallel") == "sequential":
+        # Run sequentially to save rate limits (log -> metric -> deployment -> join)
+        builder.add_edge(START, "log_analysis_node")
+        builder.add_edge("log_analysis_node", "metric_analysis_node")
+        builder.add_edge("metric_analysis_node", "deployment_analysis_node")
+        builder.add_edge("deployment_analysis_node", "join_node")
+    else:
+        # Run in parallel (fast, but requires high API rate limits)
+        def start_all_analysis(state: IncidentState):
+            return [
+                Send("log_analysis_node", state),
+                Send("metric_analysis_node", state),
+                Send("deployment_analysis_node", state),
+            ]
+        builder.add_conditional_edges(START, start_all_analysis)
+        builder.add_edge("log_analysis_node", "join_node")
+        builder.add_edge("metric_analysis_node", "join_node")
+        builder.add_edge("deployment_analysis_node", "join_node")
 
     # Single path from fan-in onward
     builder.add_edge("join_node",             "memory_retrieval_node")
