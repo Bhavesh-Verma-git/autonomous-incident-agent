@@ -101,12 +101,14 @@ Analyzing logs, metrics, and deployments sequentially takes approximately 15-20 
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| Orchestration | LangGraph | Manages stateful cyclical execution and human-in-the-loop pausing |
+| Orchestration | LangGraph & LangChain | Manages stateful cyclical execution, tool calling, and human-in-the-loop pausing |
+| LLM Gateway / Routing | Custom ModelRouter | Acts as an internal gateway to handle rate limits and automatic failovers across 3 providers |
 | Primary LLM | Groq (Llama 3.3) | Provides fast, low-latency reasoning for log and metric analysis |
 | Fallback LLMs | OpenAI / Gemini | Ensures high availability when primary models hit rate limits |
-| Vector Store | ChromaDB | Embeds and retrieves past incident reports for historical context |
+| RAG (Retrieval) | ChromaDB | Embeds and retrieves past incident reports for historical context |
 | Data Validation | Pydantic | Enforces strict JSON schemas for all LLM outputs to prevent parsing errors |
-| Evaluation | LLM-as-Judge | Scores agent accuracy against ground-truth datasets |
+| Observability | Langfuse | Traces LLM calls, latency, and token usage across the agentic workflow |
+| LLM Evaluation | LLM-as-Judge | Scores agent accuracy against ground-truth datasets deterministically |
 
 ## Setup
 
